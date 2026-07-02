@@ -25,3 +25,11 @@ Subagent verified all 6 source-line refs in §1.5 and all 13 subsystem dirs/GPU 
 - ✅ §3: added the concrete alias fact `LLMEngine = V1LLMEngine` (old engine/ is a thin shim).
 - 🔶 §1.5: added an "omitted for clarity" line (abort drain, grammar bitmask, draft-token post_step) — all confirmed real.
 - No factual errors found; note judged source-accurate.
+
+## Round 3 — Slice: note 04 engine skeleton (§0-7)
+Subagent verified §1-6 all correct (composition, step 4-stage, step_with_batch_queue, run_busy_loop+1ms GIL yield, msg protocol, both IO threads incl. handshake fields). But raised a HIGH claim that the engine is NOT a separate process.
+- ❌ REJECTED the HIGH claim. Source disproves it: `vllm/v1/engine/utils.py:165` uses `context.Process(target=EngineCoreProc.run_engine_core)` — default serving (VLLM_ENABLE_V1_MULTIPROCESSING) spawns a real OS process. The subagent conflated "internal 3 threads use queue.Queue" with "not a separate process."
+- ✅ ACCEPTED its MEDIUM point: `input_queue`/`output_queue` are `queue.Queue` (thread queues) INSIDE the engine process; my "ZMQ/mp" shorthand was imprecise. Rewrote §0 to state the process/thread model precisely (process = ZMQ boundary; threads = queue.Queue).
+- ✅ Added default-multiprocessing + in-process-mode nuance; added socket pairs (DEALER↔ROUTER, PUSH↔PULL).
+- ✅ Fixed the same imprecision in note 01 §1.5.
+- Lesson: subagent overreached from correct evidence to a wrong conclusion; source verification caught it.

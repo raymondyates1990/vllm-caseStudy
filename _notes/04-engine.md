@@ -23,9 +23,7 @@ flowchart LR
     OT -- ZMQ msg (EngineCoreOutputs) --> FE1
 ```
 
-Key idea: the **engine runs in its own background process**, isolated from the API/HTTP layer, and
-communicates over **ZMQ + msgpack**. Inside that process, IO is split into dedicated threads so socket
-IO and (de)serialization overlap with the GPU forward pass (threads release the GIL during socket IO).
+Key idea: in the default serving mode (`VLLM_ENABLE_V1_MULTIPROCESSING`), the **engine runs in its own OS process**, spawned via `multiprocessing` (`EngineCoreProc.run_engine_core` is the `Process` target — see `vllm/v1/engine/utils.py`), isolated from the API/HTTP process; the two processes communicate over **ZMQ + msgpack**. *Inside* that engine process, work is split across **three threads** (input, main busy-loop, output) that talk via thread-safe `queue.Queue` objects (`input_queue`/`output_queue`), so socket IO and (de)serialization overlap with the GPU forward on the main thread (threads release the GIL during socket IO). (A simpler in-process mode also exists for basic offline `LLM` use.)
 
 ## 1. `EngineCore` — the composition root (`core.py:96`)
 
@@ -97,6 +95,7 @@ Requests are typed (`EngineCoreRequestType`):
 This is effectively a small RPC protocol between frontend and engine over ZMQ.
 
 ## 6. The two IO threads (the physical request path)
+> `input_queue`/`output_queue` here are thread-safe `queue.Queue` objects *inside* the engine process; the only cross-process hop is ZMQ.
 
 ### Input thread `process_input_sockets` (`core.py:1484`)
 - ZMQ **DEALER** sockets connect to the frontend's ROUTER.
@@ -107,7 +106,7 @@ This is effectively a small RPC protocol between frontend and engine over ZMQ.
 - Aborts are pushed to **both** `aborts_queue` (eager) and `input_queue` (ordered); abort is idempotent.
 
 ### Output thread `process_output_sockets` (`core.py:1589`)
-- ZMQ **PUSH** sockets to the frontend.
+- ZMQ **PUSH** sockets to the frontend (which uses **PULL**); the input side is engine **DEALER** ↔ frontend **ROUTER**.
 - Loop: `output_queue.get()` -> `MsgpackEncoder.encode_into(buffer)` -> `send_multipart(copy=False, track=True)`.
 - **Zero-copy** sends with a **buffer-reuse pool** + `MessageTracker` (reclaim buffers once ZMQ is done),
   important because outputs may carry tensors/np arrays.

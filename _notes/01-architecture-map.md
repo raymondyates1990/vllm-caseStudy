@@ -43,7 +43,7 @@ engine_core_outputs = self.scheduler.update_from_output(...)       # 4 update re
 ```
 
 **Key architecture facts** (interview talking points):
-- **Process decoupling**: the Engine runs in its own process/thread; the API layer talks to it via `input_queue` / `output_queue` (ZMQ/mp). Request ingress/egress and engine stepping are asynchronous.
+- **Process decoupling**: in default serving mode the Engine runs in its own OS process (spawned via `multiprocessing`, target `EngineCoreProc.run_engine_core`); the API process talks to it over **ZMQ** (not shared queues). *Inside* the engine process, three threads communicate via thread-safe `queue.Queue` (`input_queue`/`output_queue`). Request ingress/egress and engine stepping are asynchronous.
 - **The essence of continuous batching**: the busy loop keeps calling `step()`, and each step `schedule()` **re-decides** the running set — new requests join at any time, finished ones leave, prefill and decode are mixed in the same GPU forward pass. Unlike the traditional "static batch that waits until full to depart". This is one core reason it is 24x faster than HF (the other half is PagedAttention saving memory to fit a larger batch).
 - **Scheduling vs execution separation**: the `Scheduler` (pure CPU logic, my sweet spot) only produces a `SchedulerOutput` (who runs, how many tokens each, which KV blocks); `model_executor` is what touches the GPU. **This boundary is exactly the line between what I can contribute and what needs a GPU.**
 
