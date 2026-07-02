@@ -141,3 +141,10 @@ Reviewer scored fit 7/10: strong ordering/no-GPU, but UNDER-leverages the distri
 - ✅ Part F2: expanded into a fill-in STAR-story template; linked mapping + mini-projects.
 - Measured on 中文 context: stated vLLM's wide Chinese adoption + the multi-tenant/SLA/cost fit without fabricating specific companies' internal stacks.
 - Confirmed good fit: strength-first phase order, no-GPU scoping, verified test citations.
+
+## Round 19 — Holistic: time realism (30 min/day, travel)
+Reviewer: Core Path ≈ 27.75 h vs 30 h budget — completable with discipline; risk = dense M2/M3 + late dev-setup + over-scoping.
+- ✅ Created **SCHEDULE.md**: 7-week 30-min/day calendar, L-module splits (M2.1a/b/c, M3.1a/b/c), minimum-viable 15-session path, travel-vs-at-desk split, first-PR timing (docs ~Day40, substantive ~Day60), weekly checkpoints.
+- ✅ Scope discipline into plan Part 0: dev-env in Week 1; DEFER Part E2-E8 / F2 / mini-projects 03-05 to Day 50+; pick 2 of 5 mini-projects.
+- ✅ Referenced SCHEDULE.md from README.
+- Verdict: NOT over-scoped IF breadth deferred; interview-ready ~W6, PR ~W7.

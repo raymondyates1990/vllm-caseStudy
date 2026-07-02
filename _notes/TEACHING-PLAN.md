@@ -18,7 +18,7 @@
 
 **Hard constraints**:
 - No GPU -> focus on CPU-side logic (scheduler, KV mgmt, engine, API, config, tests). Read—not run—GPU code.
-- Limited time (traveling, ~30 min/day) -> the plan has a **Core Path** (must-do) and an **Extended Path** (nice-to-have).
+- Limited time (traveling, ~30 min/day) -> the plan has a **Core Path** (must-do) and an **Extended Path** (nice-to-have). Concrete calendar: [SCHEDULE.md](SCHEDULE.md) — Core Path ≈ 27.75 h ≈ 55 sessions (fits 60 days). Split L-modules into 30-min bites; do **dev-env (M6.1) in Week 1**; DEFER Part E2-E8 / F2 / mini-projects 03-05 to Day 50+; pick 2 of 5 mini-projects.
 - `study` branch only; English notes; commit + push after each session.
 
 **How to use**: go phase by phase. Each module has: Objective, Source, Official design doc, Key concepts, Hands-on, Self-check, Pitfalls, Interview hook, Effort. Do the **Hands-on** and answer the **Self-check** out loud — that is where real understanding forms. **Active learning beats re-reading**: use [DRILLS.md](DRILLS.md) (predict→verify + tricky questions with answers) and space your review (Week 1 days 1-3, Week 2 days 4-7, Week 3 days 8-14); re-do any drill you rate < 4/5 confidence.
