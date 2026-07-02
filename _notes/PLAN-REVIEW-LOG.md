@@ -92,3 +92,10 @@ Senior-curriculum review. Confirmed **scheduler-before-KV is CORRECT** for this 
 - ✅ Added an **SSIS data-flow analogy** to M2.1's interview hook (connects to my background).
 - 🔶 Flagged (Part D gaps #6/#7): M2.3/M2.4 need dedicated reading material (note 02 covers M2.1 only); Python-lens should be copied into each note when written. Deferred actual content-writing (consistent with notes 03/05 TODO).
 - Kept intact (praised): top-down ordering, no-GPU scoping.
+
+## Round 12 — Holistic: completeness (interview coverage)
+Reviewer found the Core deep but interview BREADTH thin. I verified every proposed source exists (KVQuantMode@kv_cache_interface.py:33, v1/metrics/perf.py, v1/spec_decode/, sampling_params.py, benchmarks/, distributed/kv_transfer/, docs/design/cuda_graphs+torch_compile) before accepting.
+- ✅ Added **Part E · Interview-breadth pack**: E1 chunked prefill, E2 metrics/SLOs (TTFT/TPOT/goodput), E3 spec decode, E4 KV quant, E5 disaggregated P/D, E6 sampling params, E7 benchmarking, E8 torch.compile/CUDA-graphs — each with verified no-GPU source + interview hook + effort.
+- ✅ Discipline kept: only E1/E2/E7 are Core-breadth; E5 Core-for-distributed; rest Reading (vocabulary) — avoids bloating the lean Core spine.
+- ✅ Planned **34-glossary.md** (added to README index).
+- Confirmed already-strong: continuous batching, preemption, PagedAttention, prefix caching, control/data-plane split.

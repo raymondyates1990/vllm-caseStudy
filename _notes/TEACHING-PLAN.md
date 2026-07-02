@@ -274,6 +274,27 @@ Checklist — does every Core module have the required parts?
 
 ---
 
+## Part E · Interview-breadth pack (added round 12)
+
+The Core Path makes you deep on scheduling + KV. AI-infra interviews also probe **breadth**. These close the
+highest-value gaps; all are **no-GPU-learnable** (config/interface/logic or reading-only) and each source below
+was verified to exist. Tier = Core-breadth (do) vs Reading (skim for vocabulary).
+
+| # | Topic | Tier | Source (no-GPU, verified) | Interview hook | Effort |
+|---|---|---|---|---|---|
+| E1 | **Chunked prefill** | Core-breadth | `scheduler.py` schedule() (`long_prefill_token_threshold`); fold into note 02 | "Split big prefills across steps so they don't stall decode / cause head-of-line blocking." | S |
+| E2 | **Metrics & SLOs: TTFT / TPOT / goodput** | Core-breadth | `vllm/v1/metrics/` (perf.py, stats.py, prometheus.py) | "Batching trades TTFT for throughput; goodput = requests meeting SLO. Measure before optimizing." | S |
+| E3 | **Speculative decoding** | Reading | `vllm/v1/spec_decode/`; acceptance in `scheduler.update_from_output` | "Draft N tokens, verify in one pass → fewer forward passes → lower TPOT." | M |
+| E4 | **KV cache quantization** | Reading | `vllm/v1/kv_cache_interface.py:33` `KVQuantMode` | "FP8/INT8 KV shrinks memory → bigger batch; precision-vs-capacity tradeoff." | S |
+| E5 | **Disaggregated prefill/decode (P/D)** | Core (for distributed bg) | `vllm/distributed/kv_transfer/`; scheduler `connector` hooks | "Prefill is latency-bound, decode throughput-bound → separate pools, migrate KV. (My SSIS/ADF pipeline-stage intuition.)" | M |
+| E6 | **Sampling params** | Reading | `vllm/sampling_params.py` | "temperature/top-p/n; beam or n>1 multiplies memory+compute per request." | S |
+| E7 | **Benchmarking & profiling** | Core-breadth | `vllm/benchmarks/` (throughput.py, latency.py; `--enforce-eager` runs without CUDA graphs) | "I can tell if a setup is latency- or throughput-bound and propose a fix." | S |
+| E8 | **torch.compile & CUDA graphs (concept)** | Reading | `docs/design/cuda_graphs.md`, `docs/design/torch_compile.md` | "Fixed batch shapes + captured graphs cut Python/launch overhead per step." | S |
+
+Actions: fold **E1** into note 02 (Core); relabel **M4.4 = E5** "Core for a distributed-systems background"; write **34-glossary.md** (E2/E7 vocabulary + all key terms); do E2+E7 together (they pair naturally).
+
+---
+
 ## Progress checklist (tick as you go)
 > Each Core step is "done" only when you can explain it AND the cited CPU test passes.
 - [ ] M1.1 done: `pytest tests/v1/engine/test_engine_core.py -v` (understand the flow it exercises)
