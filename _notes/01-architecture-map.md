@@ -14,13 +14,14 @@ flowchart TD
     D --> E[KV Cache mgmt<br/>v1/core block_pool<br/>paged block alloc / prefix reuse]
     D --> F[Executor/Worker<br/>v1/executor · v1/worker]
     F --> G[Model execution<br/>model_executor · kernels<br/>GPU: attention/GEMM]
-    G --> H[Sample tokens<br/>v1/sample]
+    G --> H[Sample tokens<br/>model_executor.sample_tokens]
     H --> C
     C --> I[Stream back<br/>update_from_output]
     I --> B
 ```
 
 In one line: **API receives request -> Engine main loop -> Scheduler decides what runs this step -> KV mgmt allocates memory blocks -> Worker runs the forward pass on GPU -> sample tokens -> update state -> stream back.** Loop until generation completes.
+> Note: `sample_tokens()` is an **executor** method (`vllm/v1/executor/abstract.py`); it is drawn as a separate box only for data-flow clarity, not a separate subsystem.
 
 ## 1.5 Source-verified skeleton (read from source, with file:line)
 
@@ -58,6 +59,8 @@ Client(API/AsyncLLM) --input_queue--> EngineCoreProc.run_busy_loop
     |- outputs -> output_queue --> Client -> detokenize -> stream HTTP response
 ```
 
+> Omitted from this skeleton for clarity (all real, seen inside `step()`): mid-step abort drain (`_process_aborts_queue`), grammar bitmask fetch for structured output (`get_grammar_bitmask`), and speculative-decode draft-token update in `post_step` (`take_draft_token_ids`).
+
 ## 2. Subsystem table (with GPU dependency + my priority)
 
 | Subsystem | Directory | Responsibility | GPU? | My priority |
@@ -76,8 +79,10 @@ Client(API/AsyncLLM) --input_queue--> EngineCoreProc.run_busy_loop
 | Attention/GEMM kernels | `kernels`, `csrc`, `attention` | CUDA/HIP operators | Yes | Avoid for now |
 | Quantization | `model_executor/layers/quant` | FP8/INT4/GPTQ... | Yes | Avoid for now |
 
+> Out of scope (specialized, not on the core serving/scheduling path): `vllm/multimodal` (image/audio/video inputs), `vllm/reasoning` (reasoning-token parsers), `vllm/tokenizers` (per-model tokenization), `vllm/plugins` (I/O processors, LoRA resolvers). Multimodal is the largest and can pull in GPU encoders when used.
+
 ## 3. Three "new vs old architecture" things to know
-- vLLM is migrating from the old `engine/` to the new **`v1/`** architecture (cleaner scheduling/execution separation). Prefer reading `v1/`.
+- vLLM is migrating from the old `engine/` to the new **`v1/`** architecture (cleaner scheduling/execution separation). Prefer reading `v1/`. (`vllm/engine/llm_engine.py` is now just a thin alias: `LLMEngine = V1LLMEngine`.)
 - `v1/core/` is the **no-GPU logic core**: scheduling + KV management live here — best fit for me.
 - `csrc/`, `kernels/`, `rust/` are the compiled layer; on a local no-GPU machine, use `VLLM_USE_PRECOMPILED=1` to skip building.
 
