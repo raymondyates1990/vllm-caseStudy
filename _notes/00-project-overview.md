@@ -46,7 +46,7 @@ The analogy is clean:
 
 **Effect 1: near-zero waste** — only the **last block** of each sequence may be partially filled, wasting <4% (vs 60-80% traditionally). Saved memory -> more sequences batched together -> higher GPU utilization -> higher throughput.
 
-**Effect 2: flexible sharing** — when sequences share a common prefix (e.g. parallel sampling or beam search sharing the same prompt), their logical blocks **map to the same physical block**; safety is ensured by **reference counting + Copy-on-Write** (each `KVCacheBlock` has a `ref_cnt`, see `vllm/v1/core/kv_cache_utils.py`; a shared block is copied before a divergent write). This can save up to ~55% memory in shared-prefix workloads, enabling larger batches and higher throughput.
+**Effect 2: flexible sharing** — when sequences share a common prefix (e.g. parallel sampling or beam search sharing the same prompt), their logical blocks **map to the same physical block**; safety is ensured by **reference counting** (each `KVCacheBlock` has a `ref_cnt` in `vllm/v1/core/kv_cache_utils.py`). In v1 the block table is **append-only** and cached full blocks are immutable, so a request diverging from a shared prefix allocates *new* blocks for its own suffix rather than mutating the shared one — the v1 realization of the paper's Copy-on-Write idea (the actual byte-copy in the classic paper/v0 model happened at the worker layer). This can save up to ~55% memory in shared-prefix workloads, enabling larger batches and higher throughput.
 > This is the foundation of prefix caching, and the underlying mechanism behind the scheduler's `get_computed_blocks()` cache hit in note 02. Verified against `docs/design/prefix_caching.md` (block table is append-only in v1).
 
 ## 4. Effect: the numbers

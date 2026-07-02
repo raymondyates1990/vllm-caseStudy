@@ -156,8 +156,8 @@ Seven phases, ordered to maximize the learner's strengths first (skeleton + sche
 
 **M3.1 `block_pool.py`** — Effort L — Core — TODO note 03.
 - Objective: how physical KV blocks are represented, freed, and reused.
-- Source: `vllm/v1/core/block_pool.py` — `KVCacheBlock`, `FreeKVCacheBlockQueue`, `BlockHashToBlockMap`, `BlockPool.get_new_blocks/free_blocks`.
-- Design doc: `docs/design/paged_attention.md`.
+- Source: `vllm/v1/core/block_pool.py` — `BlockPool.get_new_blocks`/`free_blocks`/`touch`, `BlockHashToBlockMap`; and `vllm/v1/core/kv_cache_utils.py` — `KVCacheBlock` (has `ref_cnt`, `prev/next_free_block`), `FreeKVCacheBlockQueue` (doubly-linked, sentinel head/tail; `popleft_n`, `remove` = O(1) evict, `append_n`).
+- Design doc: `docs/design/prefix_caching.md` (authoritative for v1). Note: `docs/design/paged_attention.md` is **historical** (its own header warns it no longer matches current code) — use for paper-level intuition only.
 - Key concepts: free-list as a doubly-linked queue; block = fixed #tokens of K/V; append-only block tables; ref counting.
 - Python-lens: linked-list via object refs, `__slots__`, sentinel nodes.
 - Hands-on: `tests/v1/core/test_kv_cache_utils.py`, `test_single_type_kv_cache_manager.py`.
@@ -178,7 +178,7 @@ Seven phases, ordered to maximize the learner's strengths first (skeleton + sche
 - Design doc: `docs/design/prefix_caching.md`.
 - Key concepts: content hashing of blocks; Copy-on-Write; ref counts; eviction interplay with the free queue; hit-rate stats.
 - Hands-on: `tests/v1/core/test_prefix_caching.py`, `tests/v1/core/prefix_cache/`.
-- Self-check: How is a cache hit computed? What guarantees safety when two requests share a block? When is a cached block evictable? Why is the v1 block table append-only? When exactly does a Copy-on-Write happen (on first divergent append to a shared block, not lazily at read)?
+- Self-check: How is a cache hit computed? What guarantees safety when two requests share a block? When is a cached block evictable? Why is the v1 block table append-only, and why does that mean a diverging request allocates *new* blocks instead of mutating (copying) a shared one? How does `ref_cnt` gate eviction?
 - Interview hook: "Content-addressed KV sharing with CoW — dedup + safety."
 
 **M3.4 Hybrid / coordinator** — Effort L — *Extended*.

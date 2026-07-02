@@ -55,3 +55,10 @@ Subagent confirmed line refs 1493 (update_from_output) and 1136 (_preempt_reques
 - ✅ Added exact test names: test_stop_via_update_from_output (L578), test_preempt_during_execution (L930).
 - ✅ Enriched M2.4 with the exact preemption line chain (1143/1148/1149/1157).
 - No errors found; both modules' source refs validated.
+
+## Round 7 — Slice: plan M3.1 / M3.2 / M3.3 (KV cache)
+Subagent verified ALL symbols/claims correct with exact refs: KVCacheBlock (kv_cache_utils.py:126, ref_cnt:138, prev/next_free_block:144), FreeKVCacheBlockQueue doubly-linked w/ sentinels + O(1) remove, BlockPool.get_new_blocks:714/free_blocks:614/touch:603, BlockHashToBlockMap (block_pool.py:31), allocate_slots returns None on failure (kv_cache_manager.py:476), get_computed_blocks:202. All 4 test files + both design docs exist.
+- ✅ Reframed CoW (note00 §3 + M3.3 self-check) to v1 reality: append-only block table, immutable cached blocks, diverging requests allocate NEW blocks; paper/v0 byte-copy CoW was a worker-layer concept. (Corrects my Round-1 wording.)
+- ✅ Marked `paged_attention.md` HISTORICAL (its header warns so); made `prefix_caching.md` the authoritative M3 doc.
+- ✅ Fixed symbol locations: KVCacheBlock/FreeKVCacheBlockQueue live in kv_cache_utils.py (not block_pool.py); added exact method names to M3.1.
+- Plan judged ready to write note 03. No HIGH errors.
