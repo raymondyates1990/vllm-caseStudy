@@ -33,7 +33,7 @@ Seven phases, ordered to maximize the learner's strengths first (skeleton + sche
 |---|---|---|---|---|
 | 0 | Orientation | M0.1 what/pain/effect · M0.2 architecture map | Core | Done (notes 00,01) |
 | 1 | Serving skeleton (control plane) | M1.1 engine core · M1.2 frontend · M1.3 e2e request trace | Core | Partial (note 04) |
-| 2 | Scheduler (continuous batching) | M2.1 schedule() · M2.2 queues · M2.3 update_from_output · M2.4 preemption · M2.5 async | Core | Partial (note 02) |
+| 2 | Scheduler (continuous batching) | M2.1 schedule() · M2.2 queues · M2.3 update_from_output · M2.4 preemption · M2.5 async | Core | Partial (note 02 = M2.1; M2.3/M2.4 sections TODO) |
 | 3 | KV cache (PagedAttention) | M3.1 block_pool · M3.2 kv_cache_manager · M3.3 prefix caching · M3.4 hybrid/coordinator | Core | TODO (note 03) |
 | 4 | Distributed compute plane | M4.1 executor tiers · M4.2 worker/model_runner (read-only) · M4.3 TP/PP/DP/EP · M4.4 KV connectors / P-D | Extended | TODO |
 | 5 | Cross-cutting & features | M5.1 config · M5.2 LoRA · M5.3 observability · M5.4 structured output / spec decode | Extended | TODO |

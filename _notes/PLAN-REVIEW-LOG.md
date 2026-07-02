@@ -43,7 +43,7 @@ Subagent confirmed ALL major claims accurate and precisely verified the mechanis
 
 ## Round 5 — Slice: note 02 scheduler (was "review pending")
 Thorough subagent audit: judged "exemplary / EXACT MATCH". Verified against scheduler.py: no prefill/decode phase (docstring 396-406), all core-state fields, PRIORITY victim `max(running, key=(priority,arrival_time))` (546-548), FCFS victim `running.pop()` (569), full phase-2 flow (636-942), the exact "continue not break" comment (524-526), BlockHashToBlockMap (block_pool.py:34).
-- ✅ Fixed `__init__` line range 68-335 → 69-334 (class at 68, def at 69).
+- ✅ Fixed `__init__` line range 68-335 → 69-334 (class at 68, def at 69). [R13 refined to 69-333.]
 - ✅ Added FCFS-LIFO preemption clarification (victim = most-recently-added, protects oldest/most-progressed).
 - ✅ Marked note 02 as reviewed; updated README + TEACHING-PLAN M2.1 status and QA gap #2 (closed).
 - Note: subagent's second "issue" (docstring line range) was critiquing my prompt's approximation, not the note — no change.
@@ -104,3 +104,10 @@ Reviewer found the Core deep but interview BREADTH thin. I verified every propos
 Fresh adversarial fact-check of notes 00/01/02/04 against source. Result: **notes 00, 01, 04 = no errors found; no cross-note contradictions.** Only one LOW nitpick.
 - ✅ note 02: `__init__` line range 69-334 → 69-333 (two independent subagents converged on 333).
 - Strong validation: after 12 review rounds, all content notes are source-accurate (line numbers, mechanisms, ZMQ socket types, scheduler algorithm, KV claims all re-verified). No terminology or architecture errors.
+
+## Round 14 — Holistic: internal consistency audit
+Audited numbering, cross-refs, status, terminology, module IDs, progress-log coherence across all _notes. Terminology / module-IDs / progress-logs / cross-references = all CLEAN. Two must-fix:
+- ✅ Phase 2 status contradiction (README "Done" vs Part D "M2.3/M2.4 lack material") → made both precise: note 02 = M2.1 reviewed; M2.3/M2.4 sections TODO.
+- ✅ Stale log: R5 entry said 69-334 but note is 69-333 (R13) → annotated R5 with the refined value.
+- Nice-to-haves deferred: glossary already marked "planned"; E1 chunked-prefill section to be added when note 02 is expanded (tracked).
+- Numbering gaps (03/05/06/34) all clearly TODO/planned; no broken existing links.

@@ -13,7 +13,7 @@
 |---|---|---|---|
 | 0 Overview | [00-project-overview.md](00-project-overview.md) | What / pain (KV memory waste 60-80%) / PagedAttention / effect (24x) | Done |
 | 1 Architecture | [01-architecture-map.md](01-architecture-map.md) | Subsystem table + request data flow + study plan | Done |
-| 2 Detail·Scheduler | [02-scheduler.md](02-scheduler.md) | `schedule()` two-phase loop, preemption, prefix caching | Done (reviewed r5) |
+| 2 Detail·Scheduler | [02-scheduler.md](02-scheduler.md) | `schedule()` two-phase loop, preemption, prefix caching | M2.1 done (reviewed r5); M2.3/M2.4 TODO |
 | 2 Detail·KV | 03-kv-cache.md | block_pool + kv_cache_manager paged block allocation | TODO |
 | 2 Detail·Engine | [04-engine.md](04-engine.md) | EngineCore + EngineCoreProc: process/thread/ZMQ skeleton | Done |
 | 2 Detail·API | 05-api-server.md | entrypoints/openai request handling | TODO |
