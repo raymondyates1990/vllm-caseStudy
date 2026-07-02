@@ -15,7 +15,7 @@
 | 1 Architecture | [01-architecture-map.md](01-architecture-map.md) | Subsystem table + request data flow + study plan | Done |
 | 2 Detail·Scheduler | [02-scheduler.md](02-scheduler.md) | `schedule()` two-phase loop, preemption, prefix caching | Done (review pending) |
 | 2 Detail·KV | 03-kv-cache.md | block_pool + kv_cache_manager paged block allocation | TODO |
-| 2 Detail·Engine | 04-engine.md | EngineCore main loop | TODO |
+| 2 Detail·Engine | [04-engine.md](04-engine.md) | EngineCore + EngineCoreProc: process/thread/ZMQ skeleton | Done |
 | 2 Detail·API | 05-api-server.md | entrypoints/openai request handling | TODO |
 | 3 Contribute | 06-first-pr.md | Pick issue + PR workflow record | TODO |
 
@@ -53,3 +53,4 @@ git push origin fix/<short-desc>
 - 2026-07-02: added **source-grounded skeleton** (run_busy_loop -> step -> schedule/execute/sample/update); established project rules + reflection log, pushed to study.
 - 2026-07-02: added project language rule (records in English, conversation in Chinese).
 - 2026-07-02: translated all existing notes from Chinese/mixed to full English.
+- 2026-07-02: wrote **04-engine.md** — detailed system skeleton (EngineCore composition, step vs step_with_batch_queue, run_busy_loop, 3-thread ZMQ IO, client/engine message protocol).
