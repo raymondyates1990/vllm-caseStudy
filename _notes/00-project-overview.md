@@ -25,6 +25,7 @@ Traditional systems (e.g. pre-reserving one contiguous block for the whole KV ca
 | Over-reservation | Pre-claim space for the "possible longest output" |
 
 Result: **existing systems waste 60%-80% of KV memory**. Wasted memory -> fewer requests fit in a batch -> low GPU utilization -> low throughput.
+> Caveat: the 60-80% figure is workload-dependent — waste is worst when the configured max sequence length is much larger than actual requests, and is amortized by larger batches. Treat it as the paper's motivating case, not a universal constant.
 > This is exactly the "resource utilization / capacity planning" problem I know well, just with the resource changed from CPU/RAM to GPU memory blocks.
 
 ## 3. Solution: PagedAttention — bring OS "virtual memory + paging" to the KV cache
@@ -45,10 +46,12 @@ The analogy is clean:
 
 **Effect 1: near-zero waste** — only the **last block** of each sequence may be partially filled, wasting <4% (vs 60-80% traditionally). Saved memory -> more sequences batched together -> higher GPU utilization -> higher throughput.
 
-**Effect 2: flexible sharing** — when sequences share a common prefix (e.g. parallel sampling or beam search sharing the same prompt), their logical blocks **map to the same physical block**; safety is ensured by **reference counting + Copy-on-Write**. Saves up to 55% memory -> another +2.2x throughput.
-> This is the foundation of prefix caching, and the underlying mechanism behind the scheduler's `get_computed_blocks()` cache hit in note 02.
+**Effect 2: flexible sharing** — when sequences share a common prefix (e.g. parallel sampling or beam search sharing the same prompt), their logical blocks **map to the same physical block**; safety is ensured by **reference counting + Copy-on-Write** (each `KVCacheBlock` has a `ref_cnt`, see `vllm/v1/core/kv_cache_utils.py`; a shared block is copied before a divergent write). This can save up to ~55% memory in shared-prefix workloads, enabling larger batches and higher throughput.
+> This is the foundation of prefix caching, and the underlying mechanism behind the scheduler's `get_computed_blocks()` cache hit in note 02. Verified against `docs/design/prefix_caching.md` (block table is append-only in v1).
 
 ## 4. Effect: the numbers
+> Source note: these figures come from the **SOSP 2023 paper (arXiv:2309.06180) and the June-2023 launch blog**, not this repo's design docs. They vary with model size, batch size, sequence length, and GPU. Use them as orientation, not guarantees.
+
 | Comparison target | Throughput gain |
 |---|---|
 | vs HuggingFace Transformers | **up to 24x** (8.5-15x for parallel sampling) |
@@ -58,6 +61,8 @@ The analogy is clean:
 **Real-world**: after LMSYS Chatbot Arena / Vicuna adopted vLLM — **30x** throughput vs the initial HF backend, **GPU count halved**, ~30K requests/day average, 60K peak. A small research team served millions of users with limited campus GPUs.
 
 ## 5. Beyond PagedAttention: other "fast" techniques vLLM stacks
+> Note: PagedAttention is vLLM's *novel* contribution (the paper), but **continuous batching is a co-equal driver** of the throughput win — the README lists both as first-class "fast" features. Continuous batching itself predates vLLM (Orca). The exact split between the two is not quantified in the repo docs, so avoid citing a made-up breakdown.
+
 (README feature list, expanded later in the classification plan)
 - **Continuous batching**, **chunked prefill**, **prefix caching**
 - **Speculative decoding** (n-gram / EAGLE, etc.)

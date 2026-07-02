@@ -178,7 +178,7 @@ Seven phases, ordered to maximize the learner's strengths first (skeleton + sche
 - Design doc: `docs/design/prefix_caching.md`.
 - Key concepts: content hashing of blocks; Copy-on-Write; ref counts; eviction interplay with the free queue; hit-rate stats.
 - Hands-on: `tests/v1/core/test_prefix_caching.py`, `tests/v1/core/prefix_cache/`.
-- Self-check: How is a cache hit computed? What guarantees safety when two requests share a block? When is a cached block evictable?
+- Self-check: How is a cache hit computed? What guarantees safety when two requests share a block? When is a cached block evictable? Why is the v1 block table append-only? When exactly does a Copy-on-Write happen (on first divergent append to a shared block, not lazily at read)?
 - Interview hook: "Content-addressed KV sharing with CoW — dedup + safety."
 
 **M3.4 Hybrid / coordinator** — Effort L — *Extended*.
