@@ -1,5 +1,6 @@
-# 01 · Scheduler 调度器研读
+# 02 · Scheduler 调度器研读（阶段 2 细节）
 
+> 前置：先读 [00-project-overview.md](00-project-overview.md) 和 [01-architecture-map.md](01-architecture-map.md)。
 > 文件：`vllm/v1/core/sched/scheduler.py`（2368 行）、`request_queue.py`、`interface.py`
 > 核心方法：`schedule()`（393–1131）是 vLLM continuous batching 的心脏。
 
