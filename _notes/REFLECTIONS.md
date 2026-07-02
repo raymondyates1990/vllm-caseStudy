@@ -2,6 +2,15 @@
 
 > 每次对话后追加一条：这次学到什么、走了什么弯路、下次怎么改进。倒序（最新在上）。
 
+## 2026-07-02 · 第 2 次（Language Rule）
+**What changed**
+- Added a project-level language policy: all project records in `_notes/` must be in English for easier sharing.
+- Conversation language remains Chinese for efficient collaboration.
+
+**Follow-up action**
+- Apply this rule to all new note entries from now on.
+- Gradually migrate existing historical Chinese records to English when touching those files.
+
 ## 2026-07-02 · 第 1 次（建立方法论 + 骨架）
 **做了什么**
 - fork + clone + 配 origin/upstream，建 `study` 分支与 `_notes/` 结构。

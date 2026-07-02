@@ -19,6 +19,11 @@ remotes：`origin` = 我的 fork（raymondyates1990/vllm-caseStudy），`upstrea
 2. **自顶向下必须读真实源码**：不能只靠 md/博客/论文，要顺着入口（`run_busy_loop` → `step` → `schedule`）读代码骨架，带着理解再展开。
 3. **聚焦无 GPU 的强项子系统**：调度 / KV 管理 / engine / API / 分布式协调 / LoRA / 可观测；避开 kernels/csrc/model_executor（需 GPU，用 `VLLM_USE_PRECOMPILED=1` 跳过编译）。
 
+## 语言规则（项目级）
+- 本项目所有记录（`_notes/` 下文档、反思、摘要、计划、提交说明）统一使用**英文**，便于后续共享。
+- 我们与 AI 助手的实时对话继续使用**中文**。
+- 从本次起新增记录按此规则执行；已有历史中文记录后续可逐步迁移到英文。
+
 ## PR 工作流（将来用）
 ```bash
 git checkout main && git pull upstream main

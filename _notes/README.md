@@ -20,6 +20,7 @@
 > 完整规则见 [PROJECT-RULES.md](PROJECT-RULES.md)；每次对话的反思见 [REFLECTIONS.md](REFLECTIONS.md)。
 - `main`   —— 保持干净，只跟官方 upstream 同步；PR 从这里切功能分支。
 - `study`  —— 本分支，放所有 `_notes/` 研读笔记。**纯学习、永不 merge 回 main。**
+- 项目记录语言统一为英文；对话语言保持中文（见 PROJECT-RULES）。
 
 同步官方更新：
 ```bash
@@ -47,3 +48,4 @@ git push origin fix/<简短描述>
 - 2026-07-02：（走了弯路：一上来就钻调度器细节）纠正为**自顶向下**。
 - 2026-07-02：完成阶段0 总览 + 阶段1 架构地图；调度器笔记归位为阶段2(02-scheduler.md)。
 - 2026-07-02：补**源码骨架**(run_busy_loop→step→schedule/execute/sample/update)；确立项目规则 + 反思日志，push 到 study。
+- 2026-07-02：新增项目级语言规则：记录统一英文、对话保持中文。
