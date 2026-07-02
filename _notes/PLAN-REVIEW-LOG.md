@@ -111,3 +111,11 @@ Audited numbering, cross-refs, status, terminology, module IDs, progress-log coh
 - ✅ Stale log: R5 entry said 69-334 but note is 69-333 (R13) → annotated R5 with the refined value.
 - Nice-to-haves deferred: glossary already marked "planned"; E1 chunked-prefill section to be added when note 02 is expanded (tracked).
 - Numbering gaps (03/05/06/34) all clearly TODO/planned; no broken existing links.
+
+## Round 15 — Holistic: interview-readiness (hiring-panel sim)
+Simulated 10 role questions: 3 YES (architecture/scheduler/pain-solution), 5 PARTIAL (KV detail, system-design, chunked prefill, distributed, state machine), 2 NO (observability, spec decode). Current ~70%. Top gaps: (1) system-design backward-framing, (2) observability hands-on, (3) distributed deferred, (4) Python idioms, (5) background narrative.
+- ✅ Added **Part F**: F1 system-design recipe (SLO → bottleneck → knob map + worked 2-tier example); F2 background→serving narrative arc (3 concrete mappings). Wrote the actual framework, not just a pointer.
+- ✅ Elevated **E2+E7** to "hands-on once" (benchmarks --help; token_budget print; read metrics/perf.py).
+- ✅ Added milestone **M-F** (design from SLOs + tell the story).
+- 📌 Reaffirmed **note 03 (KV) = P0** top gap (already tracked TODO); Python-idioms-into-notes tracked (Part D #7).
+- Confirmed strengths: scheduler intuition, distributed mental model, capacity-planning instinct, source-verified notes.

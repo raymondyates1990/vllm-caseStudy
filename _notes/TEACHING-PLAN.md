@@ -47,6 +47,7 @@ Seven phases, ordered to maximize the learner's strengths first (skeleton + sche
 - M-C "I can explain PagedAttention block allocation + prefix caching from real code" (after Phase 3).
 - M-D "First PR opened" (after M6.3/M6.4; can overlap Phase 2-3).
 - M-E "I can contrast control plane vs data plane and the 4 parallelisms" (after Phase 4).
+- M-F "I can design a serving system backward from SLOs, and tell my distributed-systems → LLM-serving story" (Part F).
 
 ---
 
@@ -291,7 +292,46 @@ was verified to exist. Tier = Core-breadth (do) vs Reading (skim for vocabulary)
 | E7 | **Benchmarking & profiling** | Core-breadth | `vllm/benchmarks/` (throughput.py, latency.py; `--enforce-eager` runs without CUDA graphs) | "I can tell if a setup is latency- or throughput-bound and propose a fix." | S |
 | E8 | **torch.compile & CUDA graphs (concept)** | Reading | `docs/design/cuda_graphs.md`, `docs/design/torch_compile.md` | "Fixed batch shapes + captured graphs cut Python/launch overhead per step." | S |
 
-Actions: fold **E1** into note 02 (Core); relabel **M4.4 = E5** "Core for a distributed-systems background"; write **34-glossary.md** (E2/E7 vocabulary + all key terms); do E2+E7 together (they pair naturally).
+Actions: fold **E1** into note 02 (Core); relabel **M4.4 = E5** "Core for a distributed-systems background"; write **34-glossary.md** (E2/E7 vocabulary + all key terms); **do E2+E7 hands-on once** (run `vllm/benchmarks/throughput.py --help`; add a `token_budget`/batch-size print to a scheduler test; read `vllm/v1/metrics/perf.py` for TTFT/TPOT).
+
+---
+
+## Part F · Interview performance: design framing + story (added round 15)
+
+The Core Path makes you *explain* vLLM. Senior AI-infra interviews also test whether you can *design
+backward from requirements* and *tell why your background fits*. These two skills separate "knows the code"
+from "senior hire". Neither needs a GPU.
+
+### F1 · System-design recipe: from SLOs to vLLM config
+A repeatable backward-reasoning framework (rehearse it; apply to any design question):
+1. **Clarify SLOs + workload**: TTFT target? TPOT target? request mix (prompt/output lengths)? concurrency? tiers?
+2. **Measure current goodput** (% requests meeting SLO) — never optimize before measuring.
+3. **Find the bottleneck**: latency-bound (prefill-heavy, TTFT high) vs throughput-bound (decode-heavy, TPOT high) vs memory-bound (frequent preemption/OOM, small batch).
+4. **Turn the right knob** (one at a time, re-measure):
+
+| Symptom | Knob | Direction |
+|---|---|---|
+| TTFT too high (prefill stalls) | chunked prefill (`long_prefill_token_threshold`); priority for interactive tier | split prefills; preempt batch tier |
+| Throughput too low | `max_num_seqs`, token budget (`max_num_scheduled_tokens`), prefix caching | raise batch/budget |
+| OOM / frequent preemption | block count (`gpu_memory_utilization`), KV quant (E4), shorter `max_model_len` | free memory |
+| Mixed SLO tiers | request `priority` + preemption (M2.4) | high tier always runs; low tier preempts/re-queues |
+| Shared prompts | prefix caching (M3.3) | dedupe KV |
+
+5. **Scale out** only after single-node is tuned: TP (bigger model), P/D disaggregation (E5) to split latency vs throughput, DP replicas for more traffic.
+
+**Worked example** — two tiers on 2 GPUs: interactive (0.5s TTFT) + batch (5s OK). Give interactive requests higher `priority`; the scheduler's preemption (M2.4) already lets them preempt batch under load; cap `max_num_seqs` to protect interactive TTFT; measure per-tier goodput; if batch throughput suffers, add a DP replica. This demonstrates reasoning from SLO → scheduler primitive.
+
+### F2 · Narrative arc: distributed-systems background → LLM serving
+Rehearse out loud (often the decisive "why you" answer):
+- **Setup**: "10 years of systems design taught me it's all tradeoffs — latency vs throughput, admission vs utilization, isolation vs multiplexing."
+- **Problem**: "LLM serving *looked* alien (GPUs, KV caches), but reading vLLM I saw the same problems in a new domain."
+- **Evidence** (3 concrete mappings):
+  1. SSIS/ADF dynamic scheduling ↔ vLLM **continuous batching** (re-decide each step, not static batches).
+  2. ADMS soft-throttling / admission control ↔ **token budget + preemption** (evict lowest-priority under memory overload).
+  3. Distributed fault isolation / process lifecycle ↔ **engine process decoupling + ZMQ handshake + control/data-plane split**.
+- **Implication**: "So I bring fault-tolerance, multi-tenant isolation, and capacity modeling from day one — not a career pivot, the same discipline."
+
+Keep a worked STAR story per mapping (e.g., a real SSIS overload/throttling incident that mirrors preemption).
 
 ---
 
