@@ -124,13 +124,48 @@ This is effectively a small RPC protocol between frontend and engine over ZMQ.
 - **Zero-copy + buffer reuse**: minimize serialization overhead on the hot output path.
 - **Data parallelism**: multiple `EngineCoreProc` instances (engine_index) coordinated by a DP coordinator.
 
-## 8. Links to my experience
+## 8. Not just single-node: the executor layer and the two planes
+
+A common misconception: "vLLM is just single-machine multi-process/thread with queue decoupling." That is
+only the **simplest deployment** and only the **control plane**. The executor layer (`vllm/v1/executor/`)
+shows vLLM is a **distributed** inference system that scales from 1 GPU to multi-node clusters:
+
+| Executor | Shape | Use case |
+|---|---|---|
+| `UniProcExecutor` | single process | single GPU (simplest) |
+| `MultiprocExecutor` | multiple `WorkerProc` processes | **single-node multi-GPU** |
+| `RayDistributedExecutor` / `RayExecutorV2` | Ray cluster | **multi-node multi-GPU** |
+
+**Two planes** (critical distinction):
+- **Control / request plane = queues, async, loosely coupled** (this is the "queue decoupling" picture):
+  - frontend <-> engine: ZMQ; engine main <-> IO: in-process `input_queue`/`output_queue`;
+  - engine -> workers: a shared-memory message queue broadcasts commands (`SchedulerOutput`) to each GPU worker.
+- **Data / compute plane = NCCL collectives, synchronous, tightly coupled** (NOT queues):
+  - When multiple GPUs compute **one model** (Tensor Parallel), **every layer** does `all-reduce`/`all-gather`
+    to sync intermediate tensors. This is inherently synchronous — you cannot decouple a collective with a queue.
+
+```
+Control plane (queues/async)        Data plane (NCCL/sync)
+frontend --ZMQ--> engine            GPU0  \
+                   | broadcast       GPU1  |- all-reduce per layer (TP)
+                   v (shmem MQ)      GPU2  |
+              worker0 worker1 ...    GPU3  /
+```
+
+The four parallelism dimensions all live on the data plane: **TP** (split one model across GPUs),
+**PP** (split layers across GPUs/nodes), **DP** (full replicas + coordinator), **EP** (MoE experts).
+So: vLLM's control/request plane is queue-decoupled multi-process/thread (and that is all there is on a
+single node), but its **compute plane** — many GPUs computing one model — is NCCL-tightly-coupled, which is
+the real core of "distributed inference".
+
+## 9. Links to my experience
 - ZMQ DEALER/ROUTER + PUSH/PULL + typed messages ~= the **RPC/message-bus** systems I built.
 - input/output threads + queues overlapping IO with compute ~= **producer-consumer + backpressure** design.
 - Handshake advertising capacity (num_gpu_blocks) ~= **capacity negotiation / admission**.
 - Process isolation + DEAD sentinel ~= **fault isolation / graceful degradation** I did in reliability work.
+- Control plane (queues) vs data plane (NCCL collectives) ~= the **control/data plane split** in the distributed systems I know.
 
-## 9. Open threads / next
+## 10. Open threads / next
 - [ ] `core_client.py`: the frontend side (how AsyncLLM sends ADD and reads outputs).
 - [ ] `async_llm.py` / `output_processor.py`: detokenization + streaming back to HTTP.
 - [ ] DP coordinator: how multiple engine procs load-balance (relates to distributed coordination).
