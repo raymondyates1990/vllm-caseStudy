@@ -99,18 +99,18 @@ Seven phases, ordered to maximize the learner's strengths first (skeleton + sche
 
 **M1.2 Frontend (API + streaming)** — Effort M — *Extended* — TODO note 05.
 - Objective: trace how an HTTP request becomes an `ADD` message and how tokens stream back.
-- Source: `vllm/entrypoints/openai/api_server.py`, `vllm/entrypoints/llm.py`, `vllm/v1/engine/async_llm.py`, `core_client.py`, `output_processor.py`, `detokenizer.py`.
+- Source: `vllm/entrypoints/openai/api_server.py`; `vllm/v1/engine/async_llm.py` (`add_request`:280, `generate`:524, `abort`:709); `vllm/v1/engine/core_client.py` (async client BINDS `zmq.ROUTER`:521 + `zmq.PULL`:526 via `zmq.asyncio`); `vllm/v1/engine/output_processor.py` (detokenize:388) + `detokenizer.py`.
 - Design doc: `docs/serving/*`, `docs/design/arch_overview.md`.
-- Key concepts: OpenAI protocol mapping; `AsyncLLM` request registration; ZMQ client (ROUTER/PULL); detokenization; SSE streaming; abort propagation.
+- Key concepts: OpenAI protocol mapping (`request.to_sampling_params()`); `AsyncLLM` request registration; **detokenization happens in the frontend process** (OutputProcessor owns tokenizer/detokenizer; the engine emits only raw token IDs); ZMQ **asymmetry** — client BINDS ROUTER/PULL, engine CONNECTS DEALER/PUSH (async); SSE streaming (`text/event-stream`); abort propagation (HTTP disconnect → CancelledError → `abort()` → ABORT msg).
 - Python-lens: `asyncio`, async generators (`async for`), FastAPI/Starlette, `AsyncGenerator`.
 - Hands-on: read `tests/v1/engine/test_async_llm.py`, `test_output_processor.py`.
 - Self-check: Where is backpressure applied if a client reads slowly? How does an aborted HTTP connection reach the scheduler?
 - Interview hook: "End-to-end async path with backpressure and abort handling."
 
 **M1.3 End-to-end request trace** — Effort S — Core — TODO (do as an exercise, no new note needed).
-- Objective: on paper, follow ONE prompt from curl → api_server → AsyncLLM → ZMQ → input thread → input_queue → add_request → schedule → execute → sample → update_from_output → output_queue → output thread → detokenize → SSE chunk.
+- Objective: on paper, follow ONE prompt: curl → api_server → AsyncLLM.generate → add_request → ZMQ (client ROUTER→engine DEALER) → engine input thread → input_queue → scheduler.add_request → schedule → execute → sample → update_from_output → output_queue → engine output thread (PUSH) → client PULL → **output_processor detokenize (frontend process)** → SSE chunk. Note: detokenization is in the *frontend*, not the engine.
 - Hands-on: annotate the call chain in [01-architecture-map.md](01-architecture-map.md) §1.5 with the exact function names you verified.
-- Self-check: At which precise step does prefix caching save work? At which step does preemption happen?
+- Self-check: At which precise step does prefix caching save work? At which step does preemption happen? In which process does detokenization run, and why there (hint: CPU-bound, no GPU)?
 
 ### Phase 2 — Scheduler (continuous batching)
 

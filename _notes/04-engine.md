@@ -106,7 +106,7 @@ This is effectively a small RPC protocol between frontend and engine over ZMQ.
 - Aborts are pushed to **both** `aborts_queue` (eager) and `input_queue` (ordered); abort is idempotent.
 
 ### Output thread `process_output_sockets` (`core.py:1589`)
-- ZMQ **PUSH** sockets to the frontend (which uses **PULL**); the input side is engine **DEALER** ↔ frontend **ROUTER**.
+- ZMQ **PUSH** sockets to the frontend (which uses **PULL**); the input side is engine **DEALER** ↔ frontend **ROUTER**. The frontend *binds* ROUTER/PULL (acts as the server); the engine *connects* DEALER/PUSH; the client sockets are async (`zmq.asyncio`).
 - Loop: `output_queue.get()` -> `MsgpackEncoder.encode_into(buffer)` -> `send_multipart(copy=False, track=True)`.
 - **Zero-copy** sends with a **buffer-reuse pool** + `MessageTracker` (reclaim buffers once ZMQ is done),
   important because outputs may carry tensors/np arrays.

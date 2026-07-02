@@ -62,3 +62,10 @@ Subagent verified ALL symbols/claims correct with exact refs: KVCacheBlock (kv_c
 - ✅ Marked `paged_attention.md` HISTORICAL (its header warns so); made `prefix_caching.md` the authoritative M3 doc.
 - ✅ Fixed symbol locations: KVCacheBlock/FreeKVCacheBlockQueue live in kv_cache_utils.py (not block_pool.py); added exact method names to M3.1.
 - Plan judged ready to write note 03. No HIGH errors.
+
+## Round 8 — Slice: plan M1.2 frontend + M1.3 e2e
+Subagent verified ALL claims PASS; traced the full 16-hop flow in correct order. Key confirmations: detokenization runs in the FRONTEND process (`output_processor.py:388`; engine emits only raw token IDs); ZMQ client BINDS ROUTER:521 + PULL:526 (async zmq.asyncio) while engine CONNECTS DEALER/PUSH; async_llm add_request:280, generate:524, abort:709; SSE via text/event-stream.
+- ✅ Enriched M1.2: frontend-detokenization fact, ZMQ bind/connect asymmetry, exact line refs.
+- ✅ Refined M1.3 chain to place detokenize in the frontend + added a self-check on it.
+- ✅ Synced the ZMQ bind/connect + async detail into note 04 §6.
+- No errors; both modules validated, ready to write note 05.
