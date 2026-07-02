@@ -21,7 +21,7 @@
 - Limited time (traveling, ~30 min/day) -> the plan has a **Core Path** (must-do) and an **Extended Path** (nice-to-have).
 - `study` branch only; English notes; commit + push after each session.
 
-**How to use**: go phase by phase. Each module has: Objective, Source, Official design doc, Key concepts, Hands-on, Self-check, Pitfalls, Interview hook, Effort. Do the **Hands-on** and answer the **Self-check** out loud — that is where real understanding forms.
+**How to use**: go phase by phase. Each module has: Objective, Source, Official design doc, Key concepts, Hands-on, Self-check, Pitfalls, Interview hook, Effort. Do the **Hands-on** and answer the **Self-check** out loud — that is where real understanding forms. **Active learning beats re-reading**: use [DRILLS.md](DRILLS.md) (predict→verify + tricky questions with answers) and space your review (Week 1 days 1-3, Week 2 days 4-7, Week 3 days 8-14); re-do any drill you rate < 4/5 confidence.
 
 ---
 

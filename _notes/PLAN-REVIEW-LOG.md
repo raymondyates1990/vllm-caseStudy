@@ -126,3 +126,10 @@ Subagent flagged 3 overclaims; I verified each in source before accepting.
 - ✅ MEDIUM: M6.1 CPU install needs `VLLM_TARGET_DEVICE=cpu` (verified setup.py uses it + docs/getting_started/installation/cpu.md exists). Rewrote M6.1 + BUG-HUNTING install line honestly (VLLM_USE_PRECOMPILED targets CUDA-torch machines).
 - ✅ LOW: E7 benchmark clarified — read + `--help` on CPU, full runs need GPU/CI.
 - Confirmed REALISTIC: test_scheduler/test_kv_cache_utils/test_prefix_caching are genuinely CPU-runnable (`pytest.mark.cpu_test`); scheduler/KV imports CPU-safe; BUG-HUNTING §3 honest framing accurate.
+
+## Round 17 — Holistic: exercise / hands-on quality
+Reviewer scored hands-on 3/10 (passive, read-only), predict-verify 0/10, spaced-repetition 1/10, answer-keys 0/10; interview hooks (Core) 9/10 (keep). Strongest fix = predict→verify drills.
+- ✅ Created **DRILLS.md**: active-learning method (predict→verify + spaced-repetition schedule) + 3 predict→verify drills (scheduler-state, preemption-victim, cache-hits) WITH answers + a trace-the-request drill + 3 tricky Qs with answers.
+- 🛡️ CAUGHT SUBAGENT ERROR: its sample preemption answer said victim = priority 5 for running=[10,5,8]; the real `max((priority,arrival))` picks **10** (largest number = least important). Wrote the correct answer + stated the priority convention explicitly.
+- ✅ Referenced DRILLS.md from README + plan Part 0; added active-learning + spacing guidance.
+- 📌 Deferred (tracked): full per-module answer keys, note 03/02 expansion (DRILLS answers cover the drilled concepts meanwhile).
