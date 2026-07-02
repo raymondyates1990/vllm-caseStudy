@@ -37,7 +37,7 @@ speculative decoding at once. Very elegant.
 
 ## 2. The `schedule()` two-phase algorithm
 
-### Phase 1: schedule RUNNING first (already-running requests, from line 437)
+### Phase 1: schedule RUNNING first (already-running requests, from line 437) · *daily bite M2.1a*
 ```
 token_budget = max_num_scheduled_tokens
 for request in self.running:          # iterate running requests
@@ -56,7 +56,7 @@ for request in self.running:          # iterate running requests
     token_budget -= num_new_tokens
 ```
 
-### Phase 2: then schedule WAITING (new-request admission, from ~line 600)
+### Phase 2: then schedule WAITING (new-request admission, from ~line 600) · *daily bite M2.1b*
 ```
 while waiting not empty and token_budget > 0 and concurrency not full:
     request = waiting.peek_request()
@@ -74,7 +74,7 @@ while waiting not empty and token_budget > 0 and concurrency not full:
     running.append(request); waiting.pop_request()
 ```
 
-## 3. Subtle design points (interview talking points)
+## 3. Subtle design points (interview talking points) · *daily bite M2.1c*
 
 1. **Preemption is admission control**: when KV blocks (memory) run out, evict the lowest-priority / most-recently-added request and free its KV blocks for requests that should run. Equivalent to the soft-throttling / overload protection I built, just with memory blocks as the resource. Note: under FCFS the victim is the *most-recently-added* running request (`running.pop()`) — preemption is **LIFO**, which protects the oldest / most-progressed requests.
 2. **`continue` instead of `break`** (phase 1, when num_new_tokens==0): the comment explicitly says *"do not strictly follow FCFS, allow lower-priority requests to be scheduled"* — **deliberately breaking strict FCFS to avoid head-of-line blocking**, letting runnable requests run first. A classic scheduling trade-off.

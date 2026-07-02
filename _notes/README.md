@@ -21,6 +21,14 @@
 
 **Planning & meta docs**: [TEACHING-PLAN.md](TEACHING-PLAN.md) (full curriculum + review + detailed modules + QA + interview-breadth pack) · [SCHEDULE.md](SCHEDULE.md) (30-min/day 7-week calendar + minimum-viable path + travel split) · [BUG-HUNTING.md](BUG-HUNTING.md) (find a bug / first-PR guide + AI-assist policy) · [DRILLS.md](DRILLS.md) (predict→verify active-learning drills + answers) · [DISTRIBUTED-SYSTEMS-MAPPING.md](DISTRIBUTED-SYSTEMS-MAPPING.md) (my background → vLLM + 中文 context) · [mini-projects/](mini-projects/README.md) (Python coding katas) · 34-glossary.md (planned: TTFT/TPOT/goodput + key terms).
 
+## Remaining work (prioritized — from the 20-round review)
+Verdict: **GO for execution** (quality 8/10; Core notes 00/01/02/04 source-verified, no conceptual errors). Remaining items are content TODOs, not fixes:
+1. ⭐ **Write 03-kv-cache.md** (Core M3.1-3.3) — the single highest-value next action; unblocks milestone M-C (explain PagedAttention from real code) + first PR.
+2. Do the **M1.3 e2e trace** exercise (annotate [01-architecture-map.md](01-architecture-map.md) §1.5 with file:line for all 5 hops).
+3. Fold **E1 (chunked prefill)** into note 02; write **E2 (metrics/SLOs)** as a short supplement.
+4. (Day 50+, bonus) Part E3-E8, Part F2 narrative, Phase 4-5, mini-projects 03-05.
+Day-by-day plan: [SCHEDULE.md](SCHEDULE.md).
+
 ## Branch convention
 > Full rules: [PROJECT-RULES.md](PROJECT-RULES.md). Per-conversation reflections: [REFLECTIONS.md](REFLECTIONS.md).
 - `main`  — kept clean, only synced with official `upstream`; branch PRs from here.

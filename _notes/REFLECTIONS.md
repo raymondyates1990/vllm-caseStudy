@@ -2,6 +2,15 @@
 
 > Append one entry per conversation: what I learned, which detours I took, how to improve next time. Newest on top.
 
+## 2026-07-02 · #5 (20-round subagent review of plan + content)
+**What I did**: ran 20 independent read-only Explore subagents to audit the teaching plan AND the content notes — rounds 1-10 slice-by-slice (each note/module vs real source), rounds 11-20 holistic (pedagogy, completeness, correctness, consistency, interview-readiness, no-GPU realism, exercise quality, learner-fit, time realism, final synthesis). Evaluated every finding, accepted good / rejected wrong, committed + pushed each round.
+**Key outcomes**:
+- Caught & REJECTED 2 subagent errors via source verification: R3 "engine isn't a separate process" (utils.py:165 `context.Process` disproves it) and R17 preemption-victim answer (max priority number, not min).
+- ~10 source-grounded corrections (CoW v1-semantics, paged_attention=historical, KVCacheBlock lives in kv_cache_utils.py, test_engine_core_client skips on CPU, PR-prefix set, Request.__lt__ not dataclass, __init__ 69-333, uv pip / VLLM_TARGET_DEVICE=cpu).
+- 6 new artifacts: TEACHING-PLAN (Parts E interview-breadth + F design/story), BUG-HUNTING, DRILLS (predict→verify), SCHEDULE (7-week), DISTRIBUTED-SYSTEMS-MAPPING, mini-projects (Python katas).
+- Final verdict: GO, quality 8/10. Highest-value next action: **write 03-kv-cache.md**.
+**Lesson**: subagents are strong but not infallible — always verify a HIGH-severity claim against source before acting. Holistic rounds add the most *new* value (structure, pedagogy, personalization) once slice-level accuracy is nailed.
+
 ## 2026-07-02 · #4 (Autonomous teaching-plan build)
 **What I did (user at dinner, 5-step autonomous task, no check-ins)**
 - Surveyed the real source tree (vllm subpackages, tests/, docs/design, docs/contributing) to ground the plan.

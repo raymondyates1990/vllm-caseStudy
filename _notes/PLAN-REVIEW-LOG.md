@@ -148,3 +148,12 @@ Reviewer: Core Path ≈ 27.75 h vs 30 h budget — completable with discipline; 
 - ✅ Scope discipline into plan Part 0: dev-env in Week 1; DEFER Part E2-E8 / F2 / mini-projects 03-05 to Day 50+; pick 2 of 5 mini-projects.
 - ✅ Referenced SCHEDULE.md from README.
 - Verdict: NOT over-scoped IF breadth deferred; interview-ready ~W6, PR ~W7.
+
+## Round 20 — Holistic: FINAL synthesis (go/no-go)
+Final pass over the whole `_notes/` system. **Verdict: GO** (quality 8/10; source-accuracy 9, pedagogy 8, interview-alignment 8, learner-fit 8, completeness 7). No conceptual errors after 19 rounds; the 5 residual gaps are content TODOs, not fixes.
+- Top residual gaps (ranked): (1) ⭐ write **03-kv-cache.md** = single highest-value next action; (2) M1.3 5-hop trace exercise; (3) Part E1/E2 written notes; (4) 30-min sub-chunking; (5) mini-project code.
+- ✅ Fixed cheap Gap 4 now: added **daily-bite anchors M2.1a/b/c** to note 02 (prevents the HIGH-risk stall on dense scheduler reading).
+- ✅ Added a **"Remaining work (prioritized)"** section to README so the learner has a crisp do-next checklist.
+- 🔎 Corrected the record: subagent was UNSURE whether mini-project files exist — they DO (created R18: 01_free_block_queue.py + 02_preemption_victim.py with TODO + self-test). Gap 5 already resolved.
+- Removal guidance (mini-projects 03-05, F2, Phase 4-5 = bonus) already handled by R19 defer-to-Day-50.
+- 20-round review COMPLETE: 20 subagent audits, 20 commits, 2 subagent errors caught & rejected (R3 process claim, R17 preemption victim), ~10 source-grounded corrections, 6 new artifacts (TEACHING-PLAN, BUG-HUNTING, DRILLS, SCHEDULE, DISTRIBUTED-SYSTEMS-MAPPING, mini-projects).
