@@ -82,3 +82,13 @@ Subagent confirmed M6.2 CPU test targets, M1.1 Python-lens (all 5 present in cor
 - ✅ M2.2 Python-lens: corrected `@dataclass(order=True)` → custom `Request.__lt__` (Request is a plain class, verified request.py:309).
 - ✅ M3.1 Python-lens: `__slots__` → `@dataclass(slots=True)` (kv_cache_utils.py:118).
 - Slice rounds 1-10 COMPLETE. Moving to holistic rounds 11-20.
+
+## Round 11 — Holistic: pedagogy / ordering / dependencies
+Senior-curriculum review. Confirmed **scheduler-before-KV is CORRECT** for this learner (strength-first; scheduler needs only the KV *contract*, not internals; M2.4 preemption naturally motivates M3). Called the spine sound but transitions weak.
+- ✅ Added an explicit **M2→M3 narrative bridge** ("why blocks?").
+- ✅ Rewrote **M1.3** into a concrete 5-hop deliverable with a file:line rubric + "done" definition.
+- ✅ Replaced the progress checklist with **test-passing checkpoints** (`pytest ...::test_*`).
+- ✅ Added **"why each Extended module is deferred"** rationale in Part B.
+- ✅ Added an **SSIS data-flow analogy** to M2.1's interview hook (connects to my background).
+- 🔶 Flagged (Part D gaps #6/#7): M2.3/M2.4 need dedicated reading material (note 02 covers M2.1 only); Python-lens should be copied into each note when written. Deferred actual content-writing (consistent with notes 03/05 TODO).
+- Kept intact (praised): top-down ordering, no-GPU scoping.

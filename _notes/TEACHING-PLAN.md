@@ -67,6 +67,8 @@ Seven phases, ordered to maximize the learner's strengths first (skeleton + sche
 `M0.1 → M0.2 → M1.1 → M1.3 → M2.1 → M2.3 → M2.4 → M3.1 → M3.2 → M3.3 → M6.1 → M6.2 → M6.3 → M6.4`
 (M1.2, M2.2, M2.5, M3.4, all of Phase 4-5 = Extended.)
 
+**Why each Extended module is deferred** (so you can skip with confidence): M1.2 API details are breadth (M1.3 covers the high-level flow); M2.2 queue impl is optimization detail behind M2.1's logic; M2.5 async scheduling is latency-hiding, not a fundamental; M3.4 hybrid/Mamba KV is a specialized model feature; Phase 4 (distributed) is broad multi-node scale-out beyond single-node fundamentals; Phase 5 (config/LoRA/observability/spec-decode) are orthogonal features, not prerequisites. Revisit any of them after the Core spine if time permits.
+
 ---
 
 ## Part C · Step 3: Detailed module breakdowns
@@ -107,10 +109,15 @@ Seven phases, ordered to maximize the learner's strengths first (skeleton + sche
 - Self-check: Where is backpressure applied if a client reads slowly? How does an aborted HTTP connection reach the scheduler?
 - Interview hook: "End-to-end async path with backpressure and abort handling."
 
-**M1.3 End-to-end request trace** — Effort S — Core — TODO (do as an exercise, no new note needed).
-- Objective: on paper, follow ONE prompt: curl → api_server → AsyncLLM.generate → add_request → ZMQ (client ROUTER→engine DEALER) → engine input thread → input_queue → scheduler.add_request → schedule → execute → sample → update_from_output → output_queue → engine output thread (PUSH) → client PULL → **output_processor detokenize (frontend process)** → SSE chunk. Note: detokenization is in the *frontend*, not the engine.
-- Hands-on: annotate the call chain in [01-architecture-map.md](01-architecture-map.md) §1.5 with the exact function names you verified.
-- Self-check: At which precise step does prefix caching save work? At which step does preemption happen? In which process does detokenization run, and why there (hint: CPU-bound, no GPU)?
+**M1.3 End-to-end request trace** — Effort S — Core — Exercise (no new note; annotate 01).
+- Objective: follow ONE prompt through the whole system and be able to explain each hop + which process/thread it runs in.
+- Deliverable (this is "done"): in [01-architecture-map.md](01-architecture-map.md) §1.5, write the 5 phases below, each with the **verified `file:line`**:
+  1. Ingress: curl → FastAPI → `AsyncLLM.add_request` → ZMQ ADD (client ROUTER→engine DEALER) → `input_queue`.
+  2. Admission: `input_queue` → `scheduler.add_request` → waiting queue → `schedule()`.
+  3. Execution: `schedule()` → `executor.execute_model` → `sample_tokens` (GPU).
+  4. State update: `update_from_output` → RequestStatus transition.
+  5. Egress: `output_queue` → ZMQ PUSH→client PULL → `output_processor` detokenize (frontend) → SSE.
+- Self-check (no notes): explain each of the 5 hops aloud and name the process/thread. At which hop does prefix caching save work? preemption? detokenization?
 
 ### Phase 2 — Scheduler (continuous batching)
 
@@ -123,7 +130,7 @@ Seven phases, ordered to maximize the learner's strengths first (skeleton + sche
 - Hands-on: read + run (CPU) `tests/v1/core/test_scheduler.py`; add a print in a local copy to watch `token_budget` per step.
 - Self-check: Why no prefill/decode phases? When exactly does the scheduler break vs continue? How does `token_budget` interact with `max_num_seqs`?
 - Pitfalls: thinking FCFS is strict (it isn't).
-- Interview hook: "Preemption = admission control on GPU memory; budget = throttling."
+- Interview hook: "Preemption = admission control on GPU memory; budget = throttling." Analogy (fits my background): continuous batching is like an **SSIS data-flow pipeline** re-evaluating which buffers to drain each cycle instead of waiting for all data — the scheduler re-decides what runs each GPU step, mixing prefill and decode rather than strict phases.
 
 **M2.2 `request_queue.py` (FCFS vs priority)** — Effort S — *Extended*.
 - Objective: understand the two queue implementations behind `self.waiting`.
@@ -151,6 +158,8 @@ Seven phases, ordered to maximize the learner's strengths first (skeleton + sche
 - Objective: how async scheduling overlaps schedule(step n+1) with execute(step n).
 - Source: `vllm/v1/core/sched/async_scheduler.py`; `tests/v1/core/test_async_scheduler.py`.
 - Interview hook: "Latency hiding by overlapping CPU scheduling with GPU compute."
+
+> **Transition — from preemption to blocks (why Phase 3?)**: Phase 2 ended with "KV memory ran out, so we preempted a request and freed its blocks." But *what is a block*, and why is memory so scarce that preemption is needed? Phase 3 answers: KV **blocks** are the fixed-size memory pages of PagedAttention. Without them we would pre-reserve contiguous worst-case space per sequence (the 60-80% waste from note 00); with them we allocate on demand, share prefixes, and reclaim via preemption. M3.1 = what a block is; M3.2 = how the allocator hands them out (and returns None to trigger preemption); M3.3 = how sharing blocks (prefix caching) saves more.
 
 ### Phase 3 — KV cache management (PagedAttention)
 
@@ -258,17 +267,23 @@ Checklist — does every Core module have the required parts?
 3. **M1.2/M2.5/Phase 4-5** are Extended and intentionally lighter; acceptable.
 4. Design-doc claims should be **cross-checked against source** (methodology rule) rather than trusted blindly.
 5. Effort tags are rough; recalibrate after the first two modules.
+6. **M2.3/M2.4 lack dedicated reading material** — note 02 currently covers M2.1 (schedule loop) only. When reaching Phase 2, expand 02-scheduler.md with an `update_from_output` (state machine) section and a preemption/recompute section. (Core gap; tracked.)
+7. **Python-lens lives only in the plan** — when writing each note (02/03/04/05), copy the relevant Python idioms into a short "Python idioms to learn" box with real `file:line`, to serve the Python-strengthening goal.
 
 **QA verdict**: Core Path is complete and self-consistent; each Core module is actionable with a real test and a self-check. Safe to execute.
 
 ---
 
 ## Progress checklist (tick as you go)
-- [ ] M1.3 e2e trace annotated in 01
-- [ ] M2.1 note 02 reviewed for correctness
-- [ ] M2.3 update_from_output note
-- [ ] M2.4 preemption note
-- [ ] M3.1-3.3 write note 03-kv-cache
+> Each Core step is "done" only when you can explain it AND the cited CPU test passes.
+- [ ] M1.1 done: `pytest tests/v1/engine/test_engine_core.py -v` (understand the flow it exercises)
+- [ ] M1.3 e2e trace: 01 §1.5 annotated with `file:line` for all 5 hops; can explain each aloud
+- [ ] M2.1 done: `pytest tests/v1/core/test_scheduler.py -v` passes; can explain two-phase loop
+- [ ] M2.3 done: `pytest tests/v1/core/test_scheduler.py::test_stop_via_update_from_output`
+- [ ] M2.4 done: `pytest tests/v1/core/test_scheduler.py::test_preempt_during_execution`
+- [ ] M3.1 done: `pytest tests/v1/core/test_kv_cache_utils.py -v` passes; can explain free-list + O(1) evict
+- [ ] M3.2 done: trace `allocate_slots()` through a `test_scheduler.py` case (note 03)
+- [ ] M3.3 done: `pytest tests/v1/core/test_prefix_caching.py -v` passes
 - [ ] M6.1 dev env up (one CPU test passes)
 - [ ] M6.3 first issue chosen
 - [ ] M6.4 first PR opened
