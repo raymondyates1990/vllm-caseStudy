@@ -59,7 +59,7 @@ Read a source function, then its test file, and look for **unexercised branches*
 - `vllm/v1/core/sched/scheduler.py` ↔ `tests/v1/core/test_scheduler.py`
 - `vllm/v1/core/block_pool.py` ↔ `tests/v1/core/test_kv_cache_utils.py`, `test_single_type_kv_cache_manager.py`
 - prefix caching ↔ `tests/v1/core/test_prefix_caching.py`, `tests/v1/core/prefix_cache/`, `test_reset_prefix_cache_e2e.py`, `test_kv_cache_metrics.py`
-- engine client ↔ `tests/v1/engine/test_engine_core_client.py`
+- output / detokenize ↔ `tests/v1/engine/test_output_processor.py` (CPU-safe; note `test_engine_core_client.py` skips on non-CUDA)
 
 Technique: pick a function with a non-trivial `if/continue/break` (e.g. the phase-1 `continue`-not-`break`
 in `schedule()`, or preemption victim selection). Ask "is this branch covered?" If not, write a focused test
@@ -101,7 +101,7 @@ So:
 - Setup for the CPU-testable subset:
   ```bash
   # in WSL2 Ubuntu, Python 3.12 recommended (CI uses 3.12)
-  VLLM_USE_PRECOMPILED=1 uv pip install -e .   # Python-only, skips CUDA build
+  VLLM_TARGET_DEVICE=cpu uv pip install -e .   # CPU build; see docs/getting_started/installation/cpu.md (VLLM_USE_PRECOMPILED=1 targets CUDA-torch machines)
   uv pip install pytest pytest-asyncio
   pytest -s -v tests/v1/core/test_scheduler.py
   pytest -s -v tests/v1/core/test_kv_cache_utils.py

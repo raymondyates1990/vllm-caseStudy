@@ -119,3 +119,10 @@ Simulated 10 role questions: 3 YES (architecture/scheduler/pain-solution), 5 PAR
 - ✅ Added milestone **M-F** (design from SLOs + tell the story).
 - 📌 Reaffirmed **note 03 (KV) = P0** top gap (already tracked TODO); Python-idioms-into-notes tracked (Part D #7).
 - Confirmed strengths: scheduler intuition, distributed mental model, capacity-planning instinct, source-verified notes.
+
+## Round 16 — Holistic: no-GPU feasibility realism
+Subagent flagged 3 overclaims; I verified each in source before accepting.
+- ✅ HIGH: `tests/v1/engine/test_engine_core_client.py` **skips on non-CUDA** (verified lines 49-52 `is_cuda_alike()` + `pytest.skip(allow_module_level=True)`). Replaced with `test_output_processor.py` (verified no module-level CUDA skip) in M6.2 + BUG-HUNTING.
+- ✅ MEDIUM: M6.1 CPU install needs `VLLM_TARGET_DEVICE=cpu` (verified setup.py uses it + docs/getting_started/installation/cpu.md exists). Rewrote M6.1 + BUG-HUNTING install line honestly (VLLM_USE_PRECOMPILED targets CUDA-torch machines).
+- ✅ LOW: E7 benchmark clarified — read + `--help` on CPU, full runs need GPU/CI.
+- Confirmed REALISTIC: test_scheduler/test_kv_cache_utils/test_prefix_caching are genuinely CPU-runnable (`pytest.mark.cpu_test`); scheduler/KV imports CPU-safe; BUG-HUNTING §3 honest framing accurate.

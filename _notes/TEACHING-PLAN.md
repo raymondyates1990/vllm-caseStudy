@@ -229,13 +229,14 @@ Seven phases, ordered to maximize the learner's strengths first (skeleton + sche
 ### Phase 6 — Contribution (Core)
 
 **M6.1 Dev env** — Effort M.
-- Steps: WSL2 Ubuntu (Python 3.12) → `uv venv` → `VLLM_USE_PRECOMPILED=1 uv pip install -e .` (skips CUDA build; plain `pip` also works) → `uv pip install -r requirements/dev.txt` → `uv pip install pre-commit>=4.5.1 && pre-commit install`.
+- Steps: WSL2 Ubuntu (Python 3.12) → `uv venv` → install vllm → `uv pip install -r requirements/dev.txt` → `uv pip install pre-commit>=4.5.1 && pre-commit install`.
+- No-GPU install: follow `docs/getting_started/installation/cpu.md` and set `VLLM_TARGET_DEVICE=cpu` (without it the build auto-detects CUDA when torch has CUDA). The `VLLM_USE_PRECOMPILED=1` shortcut targets machines with a CUDA-capable torch; here the goal is only to *import vllm* and run the pure-logic CPU tests, not to run models.
 - Design doc: `docs/contributing/README.md`, `docs/contributing/incremental_build.md`.
 - Self-check: Can you import vllm and run one CPU unit test?
 
 **M6.2 Run tests** — Effort S.
-- No-GPU-friendly targets (pure logic): `pytest tests/v1/core/test_scheduler.py`, `test_kv_cache_utils.py`, `test_prefix_caching.py`, `tests/v1/engine/test_engine_core_client.py`.
-- Self-check: Which tests pass without a GPU? (scheduler/kv/queue logic should.)
+- No-GPU-friendly targets (pure logic; marked `pytest.mark.cpu_test`): `pytest tests/v1/core/test_scheduler.py`, `test_kv_cache_utils.py`, `test_prefix_caching.py`, `tests/v1/engine/test_output_processor.py`. (Verified: `tests/v1/engine/test_engine_core_client.py` **skips on non-CUDA** — not a CPU target.)
+- Self-check: Which tests pass without a GPU? (scheduler / kv / prefix-cache / detokenizer logic should; anything importing the model runner or NCCL won't.)
 
 **M6.3 Find an issue** — Effort M — see [BUG-HUNTING.md](BUG-HUNTING.md).
 
@@ -289,7 +290,7 @@ was verified to exist. Tier = Core-breadth (do) vs Reading (skim for vocabulary)
 | E4 | **KV cache quantization** | Reading | `vllm/v1/kv_cache_interface.py:33` `KVQuantMode` | "FP8/INT8 KV shrinks memory → bigger batch; precision-vs-capacity tradeoff." | S |
 | E5 | **Disaggregated prefill/decode (P/D)** | Core (for distributed bg) | `vllm/distributed/kv_transfer/`; scheduler `connector` hooks | "Prefill is latency-bound, decode throughput-bound → separate pools, migrate KV. (My SSIS/ADF pipeline-stage intuition.)" | M |
 | E6 | **Sampling params** | Reading | `vllm/sampling_params.py` | "temperature/top-p/n; beam or n>1 multiplies memory+compute per request." | S |
-| E7 | **Benchmarking & profiling** | Core-breadth | `vllm/benchmarks/` (throughput.py, latency.py; `--enforce-eager` runs without CUDA graphs) | "I can tell if a setup is latency- or throughput-bound and propose a fix." | S |
+| E7 | **Benchmarking & profiling** | Core-breadth | `vllm/benchmarks/` (throughput.py, latency.py) — read + `--help` on CPU; **full runs need a GPU/CI** | "I can tell if a setup is latency- or throughput-bound and propose a fix." | S |
 | E8 | **torch.compile & CUDA graphs (concept)** | Reading | `docs/design/cuda_graphs.md`, `docs/design/torch_compile.md` | "Fixed batch shapes + captured graphs cut Python/launch overhead per step." | S |
 
 Actions: fold **E1** into note 02 (Core); relabel **M4.4 = E5** "Core for a distributed-systems background"; write **34-glossary.md** (E2/E7 vocabulary + all key terms); **do E2+E7 hands-on once** (run `vllm/benchmarks/throughput.py --help`; add a `token_budget`/batch-size print to a scheduler test; read `vllm/v1/metrics/perf.py` for TTFT/TPOT).
