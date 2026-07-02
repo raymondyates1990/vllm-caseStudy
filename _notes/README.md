@@ -29,10 +29,11 @@ git push origin fix/<简短描述>
 ## 阅读地图（黄金区，无 GPU）
 | # | 主题 | 文件 | 笔记 |
 |---|------|------|------|
-| 01 | 调度器 Scheduler | `vllm/v1/core/sched/scheduler.py`, `request_queue.py` | [01-scheduler.md](01-scheduler.md) |
+| 01 | 调度器 Scheduler | `vllm/v1/core/sched/scheduler.py`, `request_queue.py` | ✅ [01-scheduler.md](01-scheduler.md) |
 | 02 | KV 块管理 | `vllm/v1/core/block_pool.py`, `kv_cache_manager.py` | 待写 |
 | 03 | OpenAI API 服务层 | `vllm/entrypoints/openai/api_server.py` | 待写 |
 | 04 | LLMEngine 引擎 | `vllm/v1/engine/` | 待写 |
 
 ## 进度日志
-- 2026-07-02：fork + clone 完成，配好 origin/upstream，建 study 分支与笔记结构。开始读 scheduler。
+- 2026-07-02：fork + clone 完成，配好 origin/upstream，建 study 分支与笔记结构。
+- 2026-07-02：读完 `schedule()` 两阶段主循环（RUNNING 抢占 + WAITING 准入 + prefix caching），写完 01 笔记。
