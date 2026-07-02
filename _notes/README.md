@@ -1,28 +1,31 @@
-# vLLM 源码研读笔记 (Ran Ye)
+# vLLM Source Study Notes (Ran Ye)
 
-> 目的：读懂 vLLM，补 Python + 分布式推理知识，为面试积累"能讲真代码"的素材，并为第一个 PR 做准备。
-> **方法论：自顶向下**——先搞懂项目是什么/痛点/效果（阶段0），再画架构分类地图（阶段1），
-> 然后逐个精读强项子系统（阶段2），最后动手第一个 PR（阶段3）。**不一上来就钻细节。**
-> 无 GPU，聚焦 Python 逻辑层（v1/core、entrypoints），编译层用 `VLLM_USE_PRECOMPILED=1` 跳过。
+> Goal: understand vLLM deeply, strengthen Python + distributed inference knowledge,
+> collect "I can talk about real code" material for interviews, and prepare for a first PR.
+> **Methodology: top-down** — first understand what/pain/effect (Stage 0), then draw the
+> architecture map (Stage 1), then read strength subsystems in detail (Stage 2), then make
+> a first PR (Stage 3). **Do not dive into details first.**
+> No GPU: focus on the Python logic layer (v1/core, entrypoints); skip the compiled layer
+> with `VLLM_USE_PRECOMPILED=1`.
 
-## 阅读顺序（自顶向下）
-| 阶段 | 笔记 | 内容 | 状态 |
+## Reading order (top-down)
+| Stage | Note | Content | Status |
 |---|---|---|---|
-| 0 总览 | [00-project-overview.md](00-project-overview.md) | 是什么 / 痛点(KV显存浪费60-80%) / PagedAttention / 效果(24x) | ✅ |
-| 1 架构地图 | [01-architecture-map.md](01-architecture-map.md) | 子系统分类表 + 请求数据流 + 学习计划 | ✅ |
-| 2 细节·调度 | [02-scheduler.md](02-scheduler.md) | `schedule()` 两阶段循环、抢占、prefix caching | ✅ 待校对 |
-| 2 细节·KV | 03-kv-cache.md | block_pool + kv_cache_manager 分页块分配 | ⬜ |
-| 2 细节·引擎 | 04-engine.md | EngineCore 主循环 | ⬜ |
-| 2 细节·API | 05-api-server.md | entrypoints/openai 请求处理 | ⬜ |
-| 3 贡献 | 06-first-pr.md | 选 issue + PR 流程记录 | ⬜ |
+| 0 Overview | [00-project-overview.md](00-project-overview.md) | What / pain (KV memory waste 60-80%) / PagedAttention / effect (24x) | Done |
+| 1 Architecture | [01-architecture-map.md](01-architecture-map.md) | Subsystem table + request data flow + study plan | Done |
+| 2 Detail·Scheduler | [02-scheduler.md](02-scheduler.md) | `schedule()` two-phase loop, preemption, prefix caching | Done (review pending) |
+| 2 Detail·KV | 03-kv-cache.md | block_pool + kv_cache_manager paged block allocation | TODO |
+| 2 Detail·Engine | 04-engine.md | EngineCore main loop | TODO |
+| 2 Detail·API | 05-api-server.md | entrypoints/openai request handling | TODO |
+| 3 Contribute | 06-first-pr.md | Pick issue + PR workflow record | TODO |
 
-## 分支约定
-> 完整规则见 [PROJECT-RULES.md](PROJECT-RULES.md)；每次对话的反思见 [REFLECTIONS.md](REFLECTIONS.md)。
-- `main`   —— 保持干净，只跟官方 upstream 同步；PR 从这里切功能分支。
-- `study`  —— 本分支，放所有 `_notes/` 研读笔记。**纯学习、永不 merge 回 main。**
-- 项目记录语言统一为英文；对话语言保持中文（见 PROJECT-RULES）。
+## Branch convention
+> Full rules: [PROJECT-RULES.md](PROJECT-RULES.md). Per-conversation reflections: [REFLECTIONS.md](REFLECTIONS.md).
+- `main`  — kept clean, only synced with official `upstream`; branch PRs from here.
+- `study` — this branch, holds all `_notes/` study notes. **Learning only, never merged into `main`.**
+- Project records are written in English; conversation stays in Chinese (see PROJECT-RULES).
 
-同步官方更新：
+Sync with upstream:
 ```bash
 git checkout main
 git fetch upstream
@@ -30,22 +33,23 @@ git merge upstream/main
 git push origin main
 ```
 
-开一个新 PR（从干净 main 切）：
+Open a new PR (branch from clean main):
 ```bash
 git checkout main && git pull upstream main
-git checkout -b fix/<简短描述>
-# 改代码 + 加测试...
-git commit -s -m "..."   # -s 是 DCO 签名，vLLM 必须
-git push origin fix/<简短描述>
-# 去 GitHub 开 PR 到 vllm-project/vllm
+git checkout -b fix/<short-desc>
+# edit code + add tests...
+git commit -s -m "..."   # -s is the DCO sign-off, required by vLLM
+git push origin fix/<short-desc>
+# open a PR against vllm-project/vllm on GitHub
 ```
 
-## 阅读地图（黄金区，无 GPU）
-> 详见 [01-architecture-map.md](01-architecture-map.md) 的子系统分类表。
+## Reading map (no-GPU sweet spots)
+> See the subsystem table in [01-architecture-map.md](01-architecture-map.md).
 
-## 进度日志
-- 2026-07-02：fork + clone，配好 origin/upstream，建 study 分支。
-- 2026-07-02：（走了弯路：一上来就钻调度器细节）纠正为**自顶向下**。
-- 2026-07-02：完成阶段0 总览 + 阶段1 架构地图；调度器笔记归位为阶段2(02-scheduler.md)。
-- 2026-07-02：补**源码骨架**(run_busy_loop→step→schedule/execute/sample/update)；确立项目规则 + 反思日志，push 到 study。
-- 2026-07-02：新增项目级语言规则：记录统一英文、对话保持中文。
+## Progress log
+- 2026-07-02: fork + clone, configured origin/upstream, created study branch.
+- 2026-07-02: (detour: dived into scheduler detail too early) corrected to **top-down**.
+- 2026-07-02: finished Stage 0 overview + Stage 1 architecture map; repositioned scheduler note to Stage 2 (02-scheduler.md).
+- 2026-07-02: added **source-grounded skeleton** (run_busy_loop -> step -> schedule/execute/sample/update); established project rules + reflection log, pushed to study.
+- 2026-07-02: added project language rule (records in English, conversation in Chinese).
+- 2026-07-02: translated all existing notes from Chinese/mixed to full English.

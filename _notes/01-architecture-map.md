@@ -1,101 +1,101 @@
-# 01 · 架构分类与学习计划（分门别类）
+# 01 · Architecture Map and Study Plan (classification)
 
-> 自顶向下第二层：把 vLLM 拆成子系统，看清一个请求怎么流过整个系统，
-> 再据"我的强项 + 无 GPU"排出学习优先级。**这一层是钻细节前的地图。**
-> ⚠️ 原则修正：自顶向下**必须基于真实源码**，不能只靠 md/在线资料。下面 §1.5 是从 source code 读出的骨架。
+> Top-down layer 2: break vLLM into subsystems, see how a request flows through the whole system,
+> then order study priority by "my strengths + no GPU". **This layer is the map before diving into detail.**
+> Correction: top-down **must be grounded in real source code**, not only md/online material. Section 1.5 is the skeleton read from the source.
 
-## 1. 一个请求的生命周期（数据流）
+## 1. Lifecycle of a request (data flow)
 
 ```mermaid
 flowchart TD
-    A[HTTP 请求<br/>OpenAI 兼容] --> B[API 层<br/>entrypoints/openai]
-    B --> C[Engine 引擎<br/>v1/engine EngineCore]
-    C --> D[Scheduler 调度器<br/>v1/core/sched<br/>每步选哪些请求/多少 token]
-    D --> E[KV Cache 管理<br/>v1/core block_pool<br/>分页块分配/prefix 复用]
+    A[HTTP request<br/>OpenAI-compatible] --> B[API layer<br/>entrypoints/openai]
+    B --> C[Engine<br/>v1/engine EngineCore]
+    C --> D[Scheduler<br/>v1/core/sched<br/>pick requests/tokens per step]
+    D --> E[KV Cache mgmt<br/>v1/core block_pool<br/>paged block alloc / prefix reuse]
     D --> F[Executor/Worker<br/>v1/executor · v1/worker]
-    F --> G[Model 执行<br/>model_executor · kernels<br/>❌GPU: attention/GEMM]
-    G --> H[采样 token<br/>v1/sample]
+    F --> G[Model execution<br/>model_executor · kernels<br/>GPU: attention/GEMM]
+    G --> H[Sample tokens<br/>v1/sample]
     H --> C
-    C --> I[流式返回<br/>update_from_output]
+    C --> I[Stream back<br/>update_from_output]
     I --> B
 ```
 
-一句话：**API 收请求 → Engine 主循环 → Scheduler 决定这步跑什么 → KV 管理分配显存块 → Worker 在 GPU 上前向 → 采样出 token → 更新状态 → 流式吐回。** 循环直到生成结束。
+In one line: **API receives request -> Engine main loop -> Scheduler decides what runs this step -> KV mgmt allocates memory blocks -> Worker runs the forward pass on GPU -> sample tokens -> update state -> stream back.** Loop until generation completes.
 
-## 1.5 源码验证的真实骨架（从 source code 读出，带 file:line）
+## 1.5 Source-verified skeleton (read from source, with file:line)
 
-> 不是猜的——下面每一步都在源码里对上了。这是"自顶向下 + 读源码"的核心产出。
+> Not guessed — every step below is matched in the source. This is the core output of "top-down + read source".
 
-**外层驱动循环** `EngineCoreProc.run_busy_loop()` — `vllm/v1/engine/core.py:1259`
+**Outer driver loop** `EngineCoreProc.run_busy_loop()` — `vllm/v1/engine/core.py:1259`
 ```python
 while not shutdown:
-    self._process_input_queue()   # 从 input_queue 收客户端请求 → scheduler.add_request()（入 waiting 队列）
-    self._process_engine_step()   # 调 self.step_fn() = EngineCore.step()，输出塞进 output_queue
+    self._process_input_queue()   # take client requests from input_queue -> scheduler.add_request() (into the waiting queue)
+    self._process_engine_step()   # call self.step_fn() = EngineCore.step(); push outputs into output_queue
 ```
 
-**一步** `EngineCore.step()` — `vllm/v1/engine/core.py:479`
+**One step** `EngineCore.step()` — `vllm/v1/engine/core.py:479`
 ```python
-scheduler_output = self.scheduler.schedule(...)                    # 1 调度：这步跑哪些请求/多少 token
-future = self.model_executor.execute_model(scheduler_output, ...)  # 2 执行：GPU 前向（❌我不碰这层）
-model_output = future.result() or self.model_executor.sample_tokens(...)  # 3 采样出 token
-engine_core_outputs = self.scheduler.update_from_output(...)       # 4 更新请求状态 / 判停止 / 出结果
+scheduler_output = self.scheduler.schedule(...)                    # 1 schedule: which requests / how many tokens this step
+future = self.model_executor.execute_model(scheduler_output, ...)  # 2 execute: GPU forward (I do not touch this layer)
+model_output = future.result() or self.model_executor.sample_tokens(...)  # 3 sample tokens
+engine_core_outputs = self.scheduler.update_from_output(...)       # 4 update request state / check stop / emit results
 ```
 
-**关键架构事实**（面试可讲）：
-- **进程解耦**：Engine 跑在独立进程/线程，API 层通过 `input_queue` / `output_queue`（ZMQ/mp）与它通信。请求进出与引擎步进是异步的。
-- **continuous batching 的本质**：busy loop 不停调 `step()`，每一步 `schedule()` **重新**决定 running 集合——新请求随时加入、完成的随时移出、prefill 和 decode 混在同一批 GPU 前向里。不像传统"静态 batch 等齐才发车"。这就是它比 HF 快 24x 的核心之一（另一半是 PagedAttention 省显存能装更大 batch）。
-- **调度与执行分离**：`Scheduler`（纯 CPU 逻辑，我的主场）只产出 `SchedulerOutput`（跑谁、每个跑多少 token、用哪些 KV 块）；`model_executor` 才碰 GPU。**这条分界线正好是我能贡献 vs 需要 GPU 的边界。**
+**Key architecture facts** (interview talking points):
+- **Process decoupling**: the Engine runs in its own process/thread; the API layer talks to it via `input_queue` / `output_queue` (ZMQ/mp). Request ingress/egress and engine stepping are asynchronous.
+- **The essence of continuous batching**: the busy loop keeps calling `step()`, and each step `schedule()` **re-decides** the running set — new requests join at any time, finished ones leave, prefill and decode are mixed in the same GPU forward pass. Unlike the traditional "static batch that waits until full to depart". This is one core reason it is 24x faster than HF (the other half is PagedAttention saving memory to fit a larger batch).
+- **Scheduling vs execution separation**: the `Scheduler` (pure CPU logic, my sweet spot) only produces a `SchedulerOutput` (who runs, how many tokens each, which KV blocks); `model_executor` is what touches the GPU. **This boundary is exactly the line between what I can contribute and what needs a GPU.**
 
-调用链一图流：
+Call chain at a glance:
 ```
 Client(API/AsyncLLM) --input_queue--> EngineCoreProc.run_busy_loop
-    └─ _process_input_queue → scheduler.add_request()   [请求入 waiting 队列]
-    └─ _process_engine_step → EngineCore.step()
-           ├─ scheduler.schedule()            [vllm/v1/core/sched/scheduler.py:393]  ⭐我的主场
-           ├─ model_executor.execute_model()  [GPU 前向]                              ❌需GPU
-           ├─ model_executor.sample_tokens()  [采样]                                  ❌需GPU
-           └─ scheduler.update_from_output()  [更新状态/出token]                       ⭐我的主场
-    └─ 输出 → output_queue --> Client → detokenize → 流式 HTTP 返回
+    |- _process_input_queue -> scheduler.add_request()   [request into the waiting queue]
+    |- _process_engine_step -> EngineCore.step()
+           |- scheduler.schedule()            [vllm/v1/core/sched/scheduler.py:393]  my sweet spot
+           |- model_executor.execute_model()  [GPU forward]                          needs GPU
+           |- model_executor.sample_tokens()  [sampling]                             needs GPU
+           |- scheduler.update_from_output()  [update state / emit tokens]           my sweet spot
+    |- outputs -> output_queue --> Client -> detokenize -> stream HTTP response
 ```
 
-## 2. 子系统分类表（含 GPU 依赖 + 我的优先级）
+## 2. Subsystem table (with GPU dependency + my priority)
 
-| 子系统 | 目录 | 职责 | 需 GPU? | 我的优先级 |
+| Subsystem | Directory | Responsibility | GPU? | My priority |
 |---|---|---|---|---|
-| **API/服务层** | `entrypoints/openai` | HTTP、OpenAI 协议、鉴权、流式 | ❌ | ⭐⭐ 主场 |
-| **Engine 引擎** | `v1/engine`, `engine` | 主循环，串起调度+执行 | ❌ | ⭐⭐ 主场 |
-| **Scheduler 调度** | `v1/core/sched` | continuous batching、抢占、准入 | ❌ | ⭐⭐⭐ 最强项 |
-| **KV Cache 管理** | `v1/core`(block_pool, kv_cache_manager) | PagedAttention 分页块、prefix caching | ❌ | ⭐⭐⭐ 强项 |
-| **分布式协调** | `distributed`, `v1/executor` | TP/PP/DP/EP、多 worker 通信 | 半 | ⭐⭐ 感兴趣 |
-| **多租户 LoRA** | `lora` | 多 LoRA 隔离/切换 | 半 | ⭐ 关联多租户经验 |
-| **可观测** | `tracing`, `v1/metrics` | OTel、指标、Prometheus | ❌ | ⭐ 关联 OTel 背景 |
-| **配置** | `config` | 参数体系、校验 | ❌ | ✅ 易上手/易改文档 |
-| **结构化输出** | `v1/structured_output` | JSON/grammar 约束解码 | ❌ | ✅ 逻辑层 |
-| **投机解码** | `v1/spec_decode` | n-gram/EAGLE 草稿 token | 半 | ✅ 逻辑层 |
-| Model 执行 | `model_executor`, `models` | 模型前向、权重加载 | ✅ | ❌ 暂避 |
-| Attention/GEMM kernel | `kernels`, `csrc`, `attention` | CUDA/HIP 算子 | ✅ | ❌ 暂避 |
-| 量化 | `model_executor/layers/quant` | FP8/INT4/GPTQ... | ✅ | ❌ 暂避 |
+| **API / serving layer** | `entrypoints/openai` | HTTP, OpenAI protocol, auth, streaming | No | High (sweet spot) |
+| **Engine** | `v1/engine`, `engine` | Main loop, wires scheduling + execution | No | High (sweet spot) |
+| **Scheduler** | `v1/core/sched` | continuous batching, preemption, admission | No | Highest (strongest) |
+| **KV cache mgmt** | `v1/core` (block_pool, kv_cache_manager) | PagedAttention paged blocks, prefix caching | No | High (strength) |
+| **Distributed coordination** | `distributed`, `v1/executor` | TP/PP/DP/EP, multi-worker comms | Partial | Medium (interested) |
+| **Multi-tenant LoRA** | `lora` | multi-LoRA isolation/switching | Partial | Low (relates to multi-tenant exp) |
+| **Observability** | `tracing`, `v1/metrics` | OTel, metrics, Prometheus | No | Low (relates to OTel background) |
+| **Config** | `config` | parameter system, validation | No | Yes (easy start / doc-friendly) |
+| **Structured output** | `v1/structured_output` | JSON/grammar constrained decoding | No | Yes (logic layer) |
+| **Speculative decoding** | `v1/spec_decode` | n-gram/EAGLE draft tokens | Partial | Yes (logic layer) |
+| Model execution | `model_executor`, `models` | model forward, weight loading | Yes | Avoid for now |
+| Attention/GEMM kernels | `kernels`, `csrc`, `attention` | CUDA/HIP operators | Yes | Avoid for now |
+| Quantization | `model_executor/layers/quant` | FP8/INT4/GPTQ... | Yes | Avoid for now |
 
-## 3. 三个"新旧架构"要知道的点
-- vLLM 正在从旧的 `engine/` 迁到新架构 **`v1/`**（更清晰的调度/执行分离）。读代码优先看 `v1/`。
-- `v1/core/` 是**无 GPU 逻辑核心**：调度 + KV 管理都在这，最适合我。
-- `csrc/`、`kernels/`、`rust/` 是编译层，本地无 GPU 装机用 `VLLM_USE_PRECOMPILED=1` 跳过。
+## 3. Three "new vs old architecture" things to know
+- vLLM is migrating from the old `engine/` to the new **`v1/`** architecture (cleaner scheduling/execution separation). Prefer reading `v1/`.
+- `v1/core/` is the **no-GPU logic core**: scheduling + KV management live here — best fit for me.
+- `csrc/`, `kernels/`, `rust/` are the compiled layer; on a local no-GPU machine, use `VLLM_USE_PRECOMPILED=1` to skip building.
 
-## 4. 学习计划（分阶段，自顶向下）
+## 4. Study plan (staged, top-down)
 
-- **阶段 0 · 总览** ✅ → [00-project-overview.md](00-project-overview.md)（是什么/痛点/效果）
-- **阶段 1 · 架构地图** ✅ → 本文（子系统分类 + 数据流）
-- **阶段 2 · 逐个精读我的强项子系统**（按数据流顺序）：
-  - [ ] 02 · Scheduler 调度器 → [02-scheduler.md](02-scheduler.md)（已初稿，待回看校对）
-  - [ ] 03 · KV Cache 分页块管理（block_pool + kv_cache_manager）
-  - [ ] 04 · Engine 主循环（EngineCore 如何串起来）
-  - [ ] 05 · API/服务层（api_server 请求处理）
-- **阶段 3 · 定位并动手第一个 PR**：
-  - [ ] 浏览 GitHub `good first issue` / `documentation` 标签
-  - [ ] 结合已读子系统挑 1 个能上手的（文档/小逻辑+单测）
-  - [ ] 从干净 `main` 切分支，`git commit -s`，提 PR
+- **Stage 0 · Overview** Done -> [00-project-overview.md](00-project-overview.md) (what/pain/effect)
+- **Stage 1 · Architecture map** Done -> this note (subsystem classification + data flow)
+- **Stage 2 · Read strength subsystems in detail** (in data-flow order):
+  - [ ] 02 · Scheduler -> [02-scheduler.md](02-scheduler.md) (draft done, review pending)
+  - [ ] 03 · KV cache paged block management (block_pool + kv_cache_manager)
+  - [ ] 04 · Engine main loop (how EngineCore wires it together)
+  - [ ] 05 · API / serving layer (api_server request handling)
+- **Stage 3 · Locate and make a first PR**:
+  - [ ] Browse GitHub `good first issue` / `documentation` labels
+  - [ ] Pick one workable item related to the subsystems read (docs / small logic + unit test)
+  - [ ] Branch from clean `main`, `git commit -s`, open a PR
 
-> 原则：**先理解整体再钻细节**；每读一个子系统，先问"它在数据流里的位置和职责"，再看实现。
+> Principle: **understand the whole before diving into detail**; for each subsystem, first ask "its position and responsibility in the data flow", then read the implementation.
 
 ---
-_研读日期：2026-07-02_
+_Study date: 2026-07-02_

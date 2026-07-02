@@ -1,97 +1,98 @@
-# 02 · Scheduler 调度器研读（阶段 2 细节）
+# 02 · Scheduler Deep-Dive (Stage 2 detail)
 
-> 前置：先读 [00-project-overview.md](00-project-overview.md) 和 [01-architecture-map.md](01-architecture-map.md)。
-> 文件：`vllm/v1/core/sched/scheduler.py`（2368 行）、`request_queue.py`、`interface.py`
-> 核心方法：`schedule()`（393–1131）是 vLLM continuous batching 的心脏。
+> Prereq: read [00-project-overview.md](00-project-overview.md) and [01-architecture-map.md](01-architecture-map.md) first.
+> Files: `vllm/v1/core/sched/scheduler.py` (2368 lines), `request_queue.py`, `interface.py`
+> Core method: `schedule()` (393-1131) is the heart of vLLM continuous batching.
 
-## 0. 一句话心智模型
+## 0. One-line mental model
 
-vLLM 调度器**没有"prefill 阶段 / decode 阶段"之分**。每个请求只有两个数：
-- `num_computed_tokens`：已经算完的 token 数
-- `num_tokens_with_spec`：目标 token 数 = prompt + 已生成 output + 投机(spec) token
+The vLLM scheduler has **no "prefill phase" vs "decode phase"**. Each request has just two numbers:
+- `num_computed_tokens`: how many tokens are already computed
+- `num_tokens_with_spec`: target token count = prompt + generated output + speculative (spec) tokens
 
-每一步 `schedule()` 就是**在 token 预算内，尽量让每个请求的 `num_computed_tokens` 往 `num_tokens_with_spec` 追**。
-这一个抽象同时覆盖了：chunked prefill、prefix caching、speculative decoding。非常优雅。
+Each `schedule()` step simply tries, **within the token budget, to let each request's `num_computed_tokens`
+catch up to `num_tokens_with_spec`**. This single abstraction covers chunked prefill, prefix caching, and
+speculative decoding at once. Very elegant.
 
 ```
-        num_computed_tokens ────────────►  num_tokens_with_spec
-        [=========已算=========|--本步要算 num_new_tokens--|--还没排到--]
-                               ↑ token_budget 夹住每步能算多少
+        num_computed_tokens ------------->  num_tokens_with_spec
+        [========= computed =========|-- this step: num_new_tokens --|-- not yet scheduled --]
+                                     ^ token_budget caps how much per step
 ```
 
-## 1. 核心状态（来自 `__init__` 68–335）
+## 1. Core state (from `__init__`, lines 68-335)
 
-| 字段 | 含义 | 映射我的经验 |
+| Field | Meaning | Maps to my experience |
 |---|---|---|
-| `self.requests: dict[str, Request]` | 所有在册请求 | 请求登记表 |
-| `self.waiting` | **等待队列**，按 policy 排序（FCFS / priority） | 准入队列 |
-| `self.running: list[Request]` | 正在跑的批 | in-flight batch |
-| `self.skipped_waiting` | 本步跳过的等待请求（依赖未就绪等） | 二级缓冲队列 |
-| `max_num_running_reqs` (= `max_num_seqs`) | 最大并发请求数 | 并发上限 |
-| `max_num_scheduled_tokens` | **每步 token 预算** | 容量/限流闸 |
-| `self.policy` (`SchedulingPolicy`) | FCFS 或 PRIORITY | soft-throttling 的准入策略 |
-| `kv_cache_manager` | KV 块分配器（见 02 笔记） | 内存池/块分配器 |
-| `connector` | KV Connector：跨节点 P/D 分离 + KV offload | 分布式状态迁移 |
+| `self.requests: dict[str, Request]` | all registered requests | request registry |
+| `self.waiting` | **waiting queue**, ordered by policy (FCFS / priority) | admission queue |
+| `self.running: list[Request]` | the currently running batch | in-flight batch |
+| `self.skipped_waiting` | waiting requests skipped this step (deps not ready, etc.) | secondary buffer queue |
+| `max_num_running_reqs` (= `max_num_seqs`) | max concurrent requests | concurrency cap |
+| `max_num_scheduled_tokens` | **per-step token budget** | capacity / throttle gate |
+| `self.policy` (`SchedulingPolicy`) | FCFS or PRIORITY | soft-throttling admission policy |
+| `kv_cache_manager` | KV block allocator (see note 03) | memory pool / block allocator |
+| `connector` | KV Connector: cross-node P/D disaggregation + KV offload | distributed state migration |
 
-## 2. `schedule()` 两阶段算法
+## 2. The `schedule()` two-phase algorithm
 
-### 阶段一：先调度 RUNNING（已在跑的请求，437 起）
+### Phase 1: schedule RUNNING first (already-running requests, from line 437)
 ```
 token_budget = max_num_scheduled_tokens
-for request in self.running:          # 遍历在跑的
+for request in self.running:          # iterate running requests
     num_new_tokens = num_tokens_with_spec + placeholders - num_computed_tokens
-    num_new_tokens = min(num_new_tokens, token_budget, 剩余model_len)
+    num_new_tokens = min(num_new_tokens, token_budget, remaining_model_len)
     while True:
         new_blocks = kv_cache_manager.allocate_slots(request, num_new_tokens)
-        if new_blocks is not None:    # 要到 KV 块 → 可调度
+        if new_blocks is not None:    # got KV blocks -> schedulable
             break
-        # 要不到块（KV 内存满）→ 抢占最低优先级请求
+        # cannot get blocks (KV memory full) -> preempt the lowest-priority request
         if policy == PRIORITY:
             preempted = max(running, key=lambda r: (r.priority, r.arrival_time))
-        else:  # FCFS：抢最后进来的
+        else:  # FCFS: preempt the most-recently-added
             preempted = running[-1]
-        释放 preempted 的块，放回 waiting  # 之后可重算/恢复
+        free preempted's blocks, put it back to waiting  # can recompute/resume later
     token_budget -= num_new_tokens
 ```
 
-### 阶段二：再调度 WAITING（新请求准入，~600 起）
+### Phase 2: then schedule WAITING (new-request admission, from ~line 600)
 ```
-while waiting 非空 and token_budget > 0 and 并发未满:
+while waiting not empty and token_budget > 0 and concurrency not full:
     request = waiting.peek_request()
-    # 约束检查：
-    #  - blocked 状态（等远端 KV）→ 跳到 skipped_waiting
-    #  - max_loras：若已排的 LoRA 数达上限且本请求是新 LoRA → 跳过
-    # prefix caching：找已缓存 token
+    # constraint checks:
+    #  - blocked status (waiting for remote KV) -> move to skipped_waiting
+    #  - max_loras: if scheduled LoRA count is at the cap and this is a new LoRA -> skip
+    # prefix caching: find already-cached tokens
     new_computed_blocks, num_local_cached = kv_cache_manager.get_computed_blocks(request)
-    num_external = connector.get_num_new_matched_tokens(...)   # 远端缓存
+    num_external = connector.get_num_new_matched_tokens(...)   # remote cache
     num_computed_tokens = num_local_cached + num_external
-    num_new_tokens = request.num_tokens - num_computed_tokens  # 只算没缓存的
+    num_new_tokens = request.num_tokens - num_computed_tokens  # only compute the uncached part
     new_blocks = kv_cache_manager.allocate_slots(request, num_new_tokens, new_computed_blocks)
-    if new_blocks is None:  # 块不够 → 停止收新请求（break）
+    if new_blocks is None:  # not enough blocks -> stop admitting new requests (break)
         break
     running.append(request); waiting.pop_request()
 ```
 
-## 3. 几个精妙设计点（面试可讲）
+## 3. Subtle design points (interview talking points)
 
-1. **抢占即准入控制**：KV 块（显存）不够时，踢掉优先级最低 / 最后进来的请求，释放其 KV 块给更该跑的请求。等价于我做过的 soft-throttling / 过载保护，只是资源换成了显存块。
-2. **`continue` 而非 `break`**（阶段一 num_new_tokens==0 时）：注释明说 *"do not strictly follow FCFS, allow lower-priority requests to be scheduled"*——**故意打破严格 FCFS 避免队头阻塞**，让能跑的先跑。经典调度权衡。
-3. **prefix caching**：多个请求共享相同前缀（如同一 system prompt）时，`get_computed_blocks()` 命中已缓存的 KV 块，`num_new_tokens` 直接扣掉，省掉重复 prefill 计算。→ 见 `block_pool.py` 的 `BlockHashToBlockMap`。
-4. **统一抽象**：prefill/decode/chunked-prefill/spec-decode 全靠 "追 num_computed_tokens" 一套逻辑，无分支特判。
-5. **token_budget + max_num_seqs 双约束**：既限每步算力（token），又限并发（请求数），对应吞吐 vs 延迟的权衡。
+1. **Preemption is admission control**: when KV blocks (memory) run out, evict the lowest-priority / most-recently-added request and free its KV blocks for requests that should run. Equivalent to the soft-throttling / overload protection I built, just with memory blocks as the resource.
+2. **`continue` instead of `break`** (phase 1, when num_new_tokens==0): the comment explicitly says *"do not strictly follow FCFS, allow lower-priority requests to be scheduled"* — **deliberately breaking strict FCFS to avoid head-of-line blocking**, letting runnable requests run first. A classic scheduling trade-off.
+3. **prefix caching**: when multiple requests share a common prefix (e.g. the same system prompt), `get_computed_blocks()` hits already-cached KV blocks and subtracts them from `num_new_tokens`, saving redundant prefill compute. See `BlockHashToBlockMap` in `block_pool.py`.
+4. **Unified abstraction**: prefill/decode/chunked-prefill/spec-decode all run on the single "chase num_computed_tokens" logic, with no special-case branches.
+5. **token_budget + max_num_seqs dual constraint**: caps both per-step compute (tokens) and concurrency (request count), reflecting the throughput vs latency trade-off.
 
-## 4. 我的经验直连点（面试话术素材）
-- `waiting`/`running` 双队列 + 抢占 ≈ 我做的**准入控制 + 过载保护**。
-- `token_budget` ≈ 我做的**限流预算**（soft-throttling 的 Redis Lua 令牌）。
-- `max_loras` 约束 ≈ **多租户资源隔离**。
-- KV Connector 的 P/D 分离 / KV offload ≈ **分布式状态迁移**（我熟的方向）。
+## 4. Direct links to my experience (interview material)
+- `waiting`/`running` dual queues + preemption ~= **admission control + overload protection** I built.
+- `token_budget` ~= the **throttling budget** I built (soft-throttling with Redis Lua tokens).
+- `max_loras` constraint ~= **multi-tenant resource isolation**.
+- KV Connector P/D disaggregation / KV offload ~= **distributed state migration** (a direction I know well).
 
-## 5. 待深挖 / 下一步
-- [ ] `kv_cache_manager.allocate_slots()` 与 `block_pool.py` 的块分配细节 → 写 **02 笔记**
-- [ ] `update_from_output()`（1493–1835）：模型跑完后如何更新请求状态、判 EOS/停止
-- [ ] `request_queue.py`：FCFS vs priority 队列的具体实现（peek/pop/prepend）
-- [ ] `async_scheduler.py`：异步调度如何与主循环叠 batch
-- [ ] 找一个和调度器/文档相关的 `good first issue`
+## 5. To dig deeper / next
+- [ ] `kv_cache_manager.allocate_slots()` and `block_pool.py` block allocation detail -> write **note 03**
+- [ ] `update_from_output()` (1493-1835): how request state is updated after the model runs, EOS/stop detection
+- [ ] `request_queue.py`: concrete FCFS vs priority queue implementation (peek/pop/prepend)
+- [ ] `async_scheduler.py`: how async scheduling overlaps batches with the main loop
+- [ ] Find a scheduler/doc-related `good first issue`
 
 ---
-_研读日期：2026-07-02_
+_Study date: 2026-07-02_

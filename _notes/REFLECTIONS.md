@@ -1,29 +1,35 @@
-# Reflections · 学习反思日志
+# Reflections · Learning Log
 
-> 每次对话后追加一条：这次学到什么、走了什么弯路、下次怎么改进。倒序（最新在上）。
+> Append one entry per conversation: what I learned, which detours I took, how to improve next time. Newest on top.
 
-## 2026-07-02 · 第 2 次（Language Rule）
+## 2026-07-02 · #3 (Full English migration)
 **What changed**
-- Added a project-level language policy: all project records in `_notes/` must be in English for easier sharing.
-- Conversation language remains Chinese for efficient collaboration.
+- Migrated all existing notes (00/01/02, README, PROJECT-RULES, this log) from Chinese/mixed to full English, per the language rule.
 
-**Follow-up action**
-- Apply this rule to all new note entries from now on.
-- Gradually migrate existing historical Chinese records to English when touching those files.
+**Follow-up**
+- Keep every new note in English from the start.
 
-## 2026-07-02 · 第 1 次（建立方法论 + 骨架）
-**做了什么**
-- fork + clone + 配 origin/upstream，建 `study` 分支与 `_notes/` 结构。
-- 完成 00 总览（痛点=KV显存浪费60-80%，解法=PagedAttention，效果=vs HF 24x）。
-- 完成 01 架构地图（子系统分类表 + 数据流），并**补上源码验证的骨架**：
-  `run_busy_loop`→`EngineCore.step()`→`schedule/execute/sample/update`（带 file:line）。
-- 02 调度器细节（`schedule()` 两阶段：RUNNING 抢占 + WAITING 准入 + prefix caching）。
+## 2026-07-02 · #2 (Language rule)
+**What changed**
+- Added a project-level language policy: all project records in `_notes/` are in English for easier sharing.
+- Conversation language stays Chinese for efficient collaboration.
 
-**弯路 / 教训（用户纠正）**
-1. ❌ 一上来就钻调度器细节 → ✅ 应自顶向下：先懂是什么/痛点/效果，再分类，再细节。
-2. ❌ 自顶向下只读了 md/在线资料 → ✅ 必须**基于真实源码**读骨架，带着理解自顶向下。
-3. ✅ 确立规则：`study` 永不 merge main，是纯学习分支；每次对话后 commit **且 push**；`_notes` 不 gitignore。
+**Follow-up**
+- Apply this rule to all new note entries.
 
-**下次改进**
-- 每读一个子系统，先定位它在 `EngineCore.step()` 调用链里的位置，再展开实现。
-- 继续阶段 2：03 KV 分页块管理（`block_pool.py` + `kv_cache_manager.py`），或先校对 02。
+## 2026-07-02 · #1 (Methodology + skeleton)
+**What I did**
+- fork + clone + configured origin/upstream, created `study` branch and `_notes/` structure.
+- Finished 00 overview (pain = KV memory waste 60-80%, solution = PagedAttention, effect = vs HF 24x).
+- Finished 01 architecture map (subsystem table + data flow), and **added a source-verified skeleton**:
+  `run_busy_loop` -> `EngineCore.step()` -> `schedule/execute/sample/update` (with file:line).
+- 02 scheduler detail (`schedule()` two phases: RUNNING preemption + WAITING admission + prefix caching).
+
+**Detours / lessons (user corrections)**
+1. Wrong: dived into scheduler detail immediately. Right: go top-down — understand what/pain/effect, then classify, then detail.
+2. Wrong: top-down done from md/online only. Right: must read **real source** for the skeleton, then go top-down with understanding.
+3. Rule established: `study` never merges into main, it is a learning-only branch; commit **and push** after every conversation; do not gitignore `_notes`.
+
+**Next-time improvement**
+- For each subsystem, first locate its position in the `EngineCore.step()` call chain, then expand the implementation.
+- Continue Stage 2: 03 KV paged block management (`block_pool.py` + `kv_cache_manager.py`), or review 02 first.
