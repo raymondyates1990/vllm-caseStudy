@@ -48,3 +48,10 @@ Thorough subagent audit: judged "exemplary / EXACT MATCH". Verified against sche
 - ✅ Marked note 02 as reviewed; updated README + TEACHING-PLAN M2.1 status and QA gap #2 (closed).
 - Note: subagent's second "issue" (docstring line range) was critiquing my prompt's approximation, not the note — no change.
 - No HIGH/MEDIUM errors. Note 02 APPROVED.
+
+## Round 6 — Slice: plan M2.3 / M2.4 source refs
+Subagent confirmed line refs 1493 (update_from_output) and 1136 (_preempt_request) are CORRECT; all 7 M2.4 claims exact (free blocks:1143, status=PREEMPTED:1148, num_computed_tokens=0:1149, prepend to waiting:1157, victim selection:545-563). Provided full 12-value RequestStatus enum and exact test names.
+- ✅ Enriched M2.3: replaced the 3-state simplification with the real 12-state RequestStatus (incl. WAITING_FOR_* + PREEMPTED + FINISHED_* family); added refs request.py:323, _handle_stopped_request:1860, _update_request_with_output:1878; added streaming-resumable nuance.
+- ✅ Added exact test names: test_stop_via_update_from_output (L578), test_preempt_during_execution (L930).
+- ✅ Enriched M2.4 with the exact preemption line chain (1143/1148/1149/1157).
+- No errors found; both modules' source refs validated.

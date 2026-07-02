@@ -134,17 +134,17 @@ Seven phases, ordered to maximize the learner's strengths first (skeleton + sche
 
 **M2.3 `update_from_output()` (state machine)** — Effort M — Core.
 - Objective: how sampled tokens update requests, stop/EOS detection, and what becomes output.
-- Source: `scheduler.py:update_from_output:1493`; `RequestStatus`; `_handle_stopped_request`.
-- Key concepts: request state machine (WAITING→RUNNING→FINISHED/PREEMPTED); stop strings; spec-decode acceptance.
-- Hands-on: `tests/v1/core/test_scheduler.py` (stop-related cases); `tests/v1/engine/test_output_processor.py`.
-- Self-check: Enumerate the request states and legal transitions. What frees the KV blocks on finish?
+- Source: `scheduler.py:update_from_output:1493`, `_update_request_with_output:1878`, `_handle_stopped_request:1860`; `RequestStatus` enum in `vllm/v1/request.py:323`.
+- Key concepts: the request state machine has **12 `RequestStatus` values**, not 3 — core flow `WAITING → RUNNING → FINISHED_*`, plus special waiting states `WAITING_FOR_STRUCTURED_OUTPUT_GRAMMAR`, `WAITING_FOR_REMOTE_KVS`, `WAITING_FOR_STREAMING_REQ`, and `PREEMPTED`. Finished states are anything `> PREEMPTED` (FINISHED_STOPPED / _LENGTH_CAPPED / _ABORTED / _IGNORED / _ERROR / _REPETITION). Stop detection via `check_stop()`; `_handle_stopped_request()` decides truly-done vs streaming-resumable; spec-decode acceptance.
+- Hands-on: `tests/v1/core/test_scheduler.py::test_stop_via_update_from_output` (EOS / custom stop / max-length); `tests/v1/engine/test_output_processor.py`.
+- Self-check: Enumerate the request states and legal transitions. What frees the KV blocks on finish? When does a request go to `WAITING_FOR_STREAMING_REQ` instead of finishing?
 - Interview hook: "A request lifecycle state machine driven by model output each step."
 
 **M2.4 Preemption & recompute** — Effort M — Core.
 - Objective: what happens when KV runs out mid-flight; priority vs FCFS victim selection; recompute on resume.
-- Source: `scheduler.py:_preempt_request:1136`, phase-1 preempt block.
-- Hands-on: construct a scenario (small `num_gpu_blocks`) in a test that forces preemption.
-- Self-check: Which request is evicted under PRIORITY? under FCFS? What state does a preempted request return to, and what work is redone?
+- Source: `scheduler.py:_preempt_request:1136` (frees blocks via `_free_request_blocks`:1143 → sets `status=PREEMPTED`:1148 → `num_computed_tokens=0`:1149 → `waiting.prepend_request`:1157); victim selection :545-563.
+- Hands-on: `tests/v1/core/test_scheduler.py::test_preempt_during_execution` (small `num_blocks` forces preemption; asserts `status==PREEMPTED` and that the preempted req still receives sampled tokens).
+- Self-check: Which request is evicted under PRIORITY? under FCFS? What state does a preempted request return to, and what work is redone? (Answer: PREEMPTED → prepended to waiting; `num_computed_tokens` reset to 0 so its prefill is recomputed on resume.)
 - Interview hook: "Overload protection: evict lowest-priority to protect the rest."
 
 **M2.5 `async_scheduler.py`** — Effort M — *Extended*.
