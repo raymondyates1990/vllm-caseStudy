@@ -332,7 +332,12 @@ Rehearse out loud (often the decisive "why you" answer):
   3. Distributed fault isolation / process lifecycle ↔ **engine process decoupling + ZMQ handshake + control/data-plane split**.
 - **Implication**: "So I bring fault-tolerance, multi-tenant isolation, and capacity modeling from day one — not a career pivot, the same discipline."
 
-Keep a worked STAR story per mapping (e.g., a real SSIS overload/throttling incident that mirrors preemption).
+Keep a worked **STAR story per mapping**, from my real experience (fill in):
+- *Situation/Task*: a real SSIS/ADMS overload or admission-control incident I owned.
+- *Action*: how I throttled/shed/isolated (the mechanism).
+- *Result*: the outcome + metric.
+- *Bridge*: "— that's exactly vLLM's preemption/token-budget under KV pressure."
+Full mapping table: [DISTRIBUTED-SYSTEMS-MAPPING.md](DISTRIBUTED-SYSTEMS-MAPPING.md). Reinforce concepts by coding them: [mini-projects/](mini-projects/README.md).
 
 ---
 

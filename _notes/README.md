@@ -19,7 +19,7 @@
 | 2 Detail·API | 05-api-server.md | entrypoints/openai request handling | TODO |
 | 3 Contribute | 06-first-pr.md | Pick issue + PR workflow record | TODO |
 
-**Planning & meta docs**: [TEACHING-PLAN.md](TEACHING-PLAN.md) (full curriculum + review + detailed modules + QA + interview-breadth pack) · [BUG-HUNTING.md](BUG-HUNTING.md) (find a bug / first-PR guide + AI-assist policy) · [DRILLS.md](DRILLS.md) (predict→verify active-learning drills + answers) · 34-glossary.md (planned: TTFT/TPOT/goodput + key terms).
+**Planning & meta docs**: [TEACHING-PLAN.md](TEACHING-PLAN.md) (full curriculum + review + detailed modules + QA + interview-breadth pack) · [BUG-HUNTING.md](BUG-HUNTING.md) (find a bug / first-PR guide + AI-assist policy) · [DRILLS.md](DRILLS.md) (predict→verify active-learning drills + answers) · [DISTRIBUTED-SYSTEMS-MAPPING.md](DISTRIBUTED-SYSTEMS-MAPPING.md) (my background → vLLM + 中文 context) · [mini-projects/](mini-projects/README.md) (Python coding katas) · 34-glossary.md (planned: TTFT/TPOT/goodput + key terms).
 
 ## Branch convention
 > Full rules: [PROJECT-RULES.md](PROJECT-RULES.md). Per-conversation reflections: [REFLECTIONS.md](REFLECTIONS.md).

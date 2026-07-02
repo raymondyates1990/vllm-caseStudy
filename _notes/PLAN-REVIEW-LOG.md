@@ -133,3 +133,11 @@ Reviewer scored hands-on 3/10 (passive, read-only), predict-verify 0/10, spaced-
 - 🛡️ CAUGHT SUBAGENT ERROR: its sample preemption answer said victim = priority 5 for running=[10,5,8]; the real `max((priority,arrival))` picks **10** (largest number = least important). Wrote the correct answer + stated the priority convention explicitly.
 - ✅ Referenced DRILLS.md from README + plan Part 0; added active-learning + spacing guidance.
 - 📌 Deferred (tracked): full per-module answer keys, note 03/02 expansion (DRILLS answers cover the drilled concepts meanwhile).
+
+## Round 18 — Holistic: learner-fit (distributed strength + Python weakness)
+Reviewer scored fit 7/10: strong ordering/no-GPU, but UNDER-leverages the distributed background and leaves Python PASSIVE. Two highest-impact personalizations accepted.
+- ✅ Created **DISTRIBUTED-SYSTEMS-MAPPING.md**: 1-page SSIS/ADF/ADMS ↔ vLLM table (buffers→KV blocks, throttling→token_budget, overload-shed→preemption, isolation→control/data plane, dedup→prefix caching) + reverse-engineering exercise + measured 中文-market context + EN↔中 glossary bridge.
+- ✅ Created **mini-projects/** (active Python): 01 FreeBlockQueue (O(1) doubly-linked free list) + 02 preemption-victim (correct PRIORITY/FCFS semantics) as runnable skeleton+self-test katas; C/D/E planned. Directly fixes the passive-Python gap.
+- ✅ Part F2: expanded into a fill-in STAR-story template; linked mapping + mini-projects.
+- Measured on 中文 context: stated vLLM's wide Chinese adoption + the multi-tenant/SLA/cost fit without fabricating specific companies' internal stacks.
+- Confirmed good fit: strength-first phase order, no-GPU scoping, verified test citations.
