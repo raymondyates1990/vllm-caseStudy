@@ -1,0 +1,276 @@
+# vLLM Learning · Master Teaching Plan
+
+> Autonomous plan built 2026-07-02. Covers the 5 requested steps:
+> (1) overall plan, (2) plan review, (3) per-step detailed elaboration, (4) implementation review, (5) bug-finding (in [BUG-HUNTING.md](BUG-HUNTING.md)).
+> Language: English (project rule). Grounded in the real source tree of this repo.
+
+---
+
+## Part 0 · Goals, constraints, how to use
+
+**Learner profile**: Ran Ye — 10 yrs distributed systems / scheduling / reliability (SSIS, ADF, ADMS at Microsoft). Strong on queues, admission control, capacity, fault isolation. Python is the weak spot (mostly AI-assisted so far). **No local GPU.**
+
+**Goals** (priority order):
+1. Understand vLLM deeply enough to *talk about real code* in interviews.
+2. Strengthen Python + distributed-inference vocabulary.
+3. Land a first merged PR (credibility signal).
+4. Build reusable, English, shareable notes.
+
+**Hard constraints**:
+- No GPU -> focus on CPU-side logic (scheduler, KV mgmt, engine, API, config, tests). Read—not run—GPU code.
+- Limited time (traveling, ~30 min/day) -> the plan has a **Core Path** (must-do) and an **Extended Path** (nice-to-have).
+- `study` branch only; English notes; commit + push after each session.
+
+**How to use**: go phase by phase. Each module has: Objective, Source, Official design doc, Key concepts, Hands-on, Self-check, Pitfalls, Interview hook, Effort. Do the **Hands-on** and answer the **Self-check** out loud — that is where real understanding forms.
+
+---
+
+## Part A · Step 1: The high-level curriculum
+
+Seven phases, ordered to maximize the learner's strengths first (skeleton + scheduler), then broaden.
+
+| Phase | Theme | Modules | Path | Status |
+|---|---|---|---|---|
+| 0 | Orientation | M0.1 what/pain/effect · M0.2 architecture map | Core | Done (notes 00,01) |
+| 1 | Serving skeleton (control plane) | M1.1 engine core · M1.2 frontend · M1.3 e2e request trace | Core | Partial (note 04) |
+| 2 | Scheduler (continuous batching) | M2.1 schedule() · M2.2 queues · M2.3 update_from_output · M2.4 preemption · M2.5 async | Core | Partial (note 02) |
+| 3 | KV cache (PagedAttention) | M3.1 block_pool · M3.2 kv_cache_manager · M3.3 prefix caching · M3.4 hybrid/coordinator | Core | TODO (note 03) |
+| 4 | Distributed compute plane | M4.1 executor tiers · M4.2 worker/model_runner (read-only) · M4.3 TP/PP/DP/EP · M4.4 KV connectors / P-D | Extended | TODO |
+| 5 | Cross-cutting & features | M5.1 config · M5.2 LoRA · M5.3 observability · M5.4 structured output / spec decode | Extended | TODO |
+| 6 | Contribution | M6.1 dev env · M6.2 run tests · M6.3 find issue · M6.4 make PR | Core | TODO |
+
+**Sequencing rationale**: skeleton (1) gives a coordinate system; scheduler (2) and KV (3) are the learner's strongest, highest-interview-value, fully-no-GPU areas; distributed (4) leverages the distributed background but is broader; features (5) are breadth; contribution (6) can start as soon as Phase 2 is understood (docs/test PRs don't need the whole system).
+
+**Milestones**:
+- M-A "I can whiteboard the request data flow" (after Phase 1).
+- M-B "I can explain continuous batching + preemption from real code" (after Phase 2).
+- M-C "I can explain PagedAttention block allocation + prefix caching from real code" (after Phase 3).
+- M-D "First PR opened" (after M6.3/M6.4; can overlap Phase 2-3).
+- M-E "I can contrast control plane vs data plane and the 4 parallelisms" (after Phase 4).
+
+---
+
+## Part B · Step 2: Plan review (critique + revisions)
+
+**What is good**: strength-first ordering; no-GPU scoping; ties each topic to interview value; contribution can start early.
+
+**Weaknesses found & fixes**:
+1. *Too much breadth risk.* Phases 4-5 could balloon. **Fix**: mark them Extended; the Core Path is Phases 0-3 + 6. Interview-ready = Core Path.
+2. *Reading without doing = shallow.* **Fix**: every module now has a **Hands-on** using the repo's real tests (`tests/v1/core/*`, `tests/v1/engine/*`) and a **Self-check** question set.
+3. *"Understand" is unmeasurable.* **Fix**: milestones M-A..M-E are phrased as *"I can explain X from real code"* — a concrete bar.
+4. *PR gated on finishing everything.* **Fix**: Phase 6 explicitly says a docs/test PR can be done right after Phase 2; do not wait for Phase 4-5.
+5. *Python weakness not addressed inside the plan.* **Fix**: added a **Python-lens** note to each code-reading module (what Python idiom to learn there — dataclasses, `deque`, `Future`, context managers, `@property`, typing).
+6. *No official-docs cross-check.* **Fix**: each module cites the matching `docs/design/*.md` so understanding is validated against maintainers' own words, not just my reading.
+7. *Effort un估计.* **Fix**: each module has an Effort tag (S/M/L ≈ 1 / 2-3 / 4+ sessions of ~30 min).
+
+**Revised Core Path (the must-do spine)**:
+`M0.1 → M0.2 → M1.1 → M1.3 → M2.1 → M2.3 → M2.4 → M3.1 → M3.2 → M3.3 → M6.1 → M6.2 → M6.3 → M6.4`
+(M1.2, M2.2, M2.5, M3.4, all of Phase 4-5 = Extended.)
+
+---
+
+## Part C · Step 3: Detailed module breakdowns
+
+> Format per module — Objective · Source · Design doc · Key concepts · Python-lens · Hands-on · Self-check · Pitfalls · Interview hook · Effort.
+
+### Phase 0 — Orientation (Done)
+
+**M0.1 What / pain / effect** — Effort S — Done in [00-project-overview.md](00-project-overview.md).
+- Objective: state the memory-bound pain (KV waste 60-80%), the PagedAttention idea, the effect (24x).
+- Self-check: Why is LLM serving memory-bound, not compute-bound? What exactly is wasted, and how does paging fix it?
+- Interview hook: "vLLM's core insight is OS paging applied to the KV cache."
+
+**M0.2 Architecture map** — Effort S — Done in [01-architecture-map.md](01-architecture-map.md).
+- Objective: draw the request data flow; classify subsystems by GPU-need and priority.
+- Self-check: Name the 4 stages of one engine step. Which touch GPU?
+
+### Phase 1 — Serving skeleton (control plane)
+
+**M1.1 Engine core** — Effort M — mostly Done in [04-engine.md](04-engine.md).
+- Objective: explain EngineCore composition, `step()` 4 stages, `run_busy_loop`, the 3-thread ZMQ IO, and control-plane vs data-plane.
+- Source: `vllm/v1/engine/core.py` (EngineCore:96, step:479, step_with_batch_queue:519, run_busy_loop:1259, process_input_sockets:1484, process_output_sockets:1589).
+- Design doc: `docs/design/arch_overview.md`, `docs/design/multiprocessing.md`.
+- Key concepts: composition root; producer-consumer queues; GIL-release overlap; pipelining to remove PP bubbles; typed message protocol (ADD/ABORT/UTILITY/WAKEUP).
+- Python-lens: `queue.Queue`, `threading.Thread(daemon=True)`, `concurrent.futures.Future`, `contextmanager`, `deque`.
+- Hands-on: read `tests/v1/engine/test_engine_core.py`; map each test to a `step()`/lifecycle behavior.
+- Self-check: Why separate input/output threads from the main loop? Why is `step_with_batch_queue` needed for PP? What does the startup handshake advertise and why?
+- Pitfalls: conflating control plane (queues) with data plane (NCCL). Assuming single-node.
+- Interview hook: "Control/data plane split: queues for requests, collectives for tensors."
+
+**M1.2 Frontend (API + streaming)** — Effort M — *Extended* — TODO note 05.
+- Objective: trace how an HTTP request becomes an `ADD` message and how tokens stream back.
+- Source: `vllm/entrypoints/openai/api_server.py`, `vllm/entrypoints/llm.py`, `vllm/v1/engine/async_llm.py`, `core_client.py`, `output_processor.py`, `detokenizer.py`.
+- Design doc: `docs/serving/*`, `docs/design/arch_overview.md`.
+- Key concepts: OpenAI protocol mapping; `AsyncLLM` request registration; ZMQ client (ROUTER/PULL); detokenization; SSE streaming; abort propagation.
+- Python-lens: `asyncio`, async generators (`async for`), FastAPI/Starlette, `AsyncGenerator`.
+- Hands-on: read `tests/v1/engine/test_async_llm.py`, `test_output_processor.py`.
+- Self-check: Where is backpressure applied if a client reads slowly? How does an aborted HTTP connection reach the scheduler?
+- Interview hook: "End-to-end async path with backpressure and abort handling."
+
+**M1.3 End-to-end request trace** — Effort S — Core — TODO (do as an exercise, no new note needed).
+- Objective: on paper, follow ONE prompt from curl → api_server → AsyncLLM → ZMQ → input thread → input_queue → add_request → schedule → execute → sample → update_from_output → output_queue → output thread → detokenize → SSE chunk.
+- Hands-on: annotate the call chain in [01-architecture-map.md](01-architecture-map.md) §1.5 with the exact function names you verified.
+- Self-check: At which precise step does prefix caching save work? At which step does preemption happen?
+
+### Phase 2 — Scheduler (continuous batching)
+
+**M2.1 `schedule()` two-phase loop** — Effort L — Draft in [02-scheduler.md](02-scheduler.md) (review pending).
+- Objective: explain the two phases (RUNNING first w/ preemption, then WAITING admission w/ prefix caching), token budget, the unified `num_computed_tokens` abstraction.
+- Source: `vllm/v1/core/sched/scheduler.py` (__init__:68, schedule:393, phase-1 ~437, phase-2 ~600).
+- Design doc: `docs/design/arch_overview.md` (scheduling section), `docs/design/prefix_caching.md`.
+- Key concepts: token_budget vs max_num_seqs; chunked prefill via unified abstraction; `continue`-not-`break` (anti head-of-line-blocking).
+- Python-lens: `dict`/`list` as queues, `min()` clamping, `max(key=...)`, walrus `:=`.
+- Hands-on: read + run (CPU) `tests/v1/core/test_scheduler.py`; add a print in a local copy to watch `token_budget` per step.
+- Self-check: Why no prefill/decode phases? When exactly does the scheduler break vs continue? How does `token_budget` interact with `max_num_seqs`?
+- Pitfalls: thinking FCFS is strict (it isn't).
+- Interview hook: "Preemption = admission control on GPU memory; budget = throttling."
+
+**M2.2 `request_queue.py` (FCFS vs priority)** — Effort S — *Extended*.
+- Objective: understand the two queue implementations behind `self.waiting`.
+- Source: `vllm/v1/core/sched/request_queue.py`; `create_request_queue(policy)`.
+- Hands-on: `tests/v1/core/test_priority_scheduler_random.py`.
+- Self-check: What is the ordering key for priority? How are `peek/pop/prepend` used by the scheduler?
+- Python-lens: `heapq`, `collections.deque`, `@dataclass(order=True)`.
+
+**M2.3 `update_from_output()` (state machine)** — Effort M — Core.
+- Objective: how sampled tokens update requests, stop/EOS detection, and what becomes output.
+- Source: `scheduler.py:update_from_output:1493`; `RequestStatus`; `_handle_stopped_request`.
+- Key concepts: request state machine (WAITING→RUNNING→FINISHED/PREEMPTED); stop strings; spec-decode acceptance.
+- Hands-on: `tests/v1/core/test_scheduler.py` (stop-related cases); `tests/v1/engine/test_output_processor.py`.
+- Self-check: Enumerate the request states and legal transitions. What frees the KV blocks on finish?
+- Interview hook: "A request lifecycle state machine driven by model output each step."
+
+**M2.4 Preemption & recompute** — Effort M — Core.
+- Objective: what happens when KV runs out mid-flight; priority vs FCFS victim selection; recompute on resume.
+- Source: `scheduler.py:_preempt_request:1136`, phase-1 preempt block.
+- Hands-on: construct a scenario (small `num_gpu_blocks`) in a test that forces preemption.
+- Self-check: Which request is evicted under PRIORITY? under FCFS? What state does a preempted request return to, and what work is redone?
+- Interview hook: "Overload protection: evict lowest-priority to protect the rest."
+
+**M2.5 `async_scheduler.py`** — Effort M — *Extended*.
+- Objective: how async scheduling overlaps schedule(step n+1) with execute(step n).
+- Source: `vllm/v1/core/sched/async_scheduler.py`; `tests/v1/core/test_async_scheduler.py`.
+- Interview hook: "Latency hiding by overlapping CPU scheduling with GPU compute."
+
+### Phase 3 — KV cache management (PagedAttention)
+
+**M3.1 `block_pool.py`** — Effort L — Core — TODO note 03.
+- Objective: how physical KV blocks are represented, freed, and reused.
+- Source: `vllm/v1/core/block_pool.py` — `KVCacheBlock`, `FreeKVCacheBlockQueue`, `BlockHashToBlockMap`, `BlockPool.get_new_blocks/free_blocks`.
+- Design doc: `docs/design/paged_attention.md`.
+- Key concepts: free-list as a doubly-linked queue; block = fixed #tokens of K/V; append-only block tables; ref counting.
+- Python-lens: linked-list via object refs, `__slots__`, sentinel nodes.
+- Hands-on: `tests/v1/core/test_kv_cache_utils.py`, `test_single_type_kv_cache_manager.py`.
+- Self-check: How is a free block chosen? What makes eviction O(1)? Why append-only block tables?
+- Interview hook: "A slab/free-list allocator for GPU memory pages — classic OS memory management."
+
+**M3.2 `kv_cache_manager.py`** — Effort L — Core.
+- Objective: the manager the scheduler calls — `allocate_slots`, `get_computed_blocks`.
+- Source: `vllm/v1/core/kv_cache_manager.py`, `kv_cache_coordinator.py`.
+- Key concepts: logical→physical mapping (block table); how `allocate_slots` returns None to trigger preemption; how cached prefixes are matched.
+- Hands-on: trace `allocate_slots` from a `test_scheduler.py` case.
+- Self-check: What is the contract of `allocate_slots` (inputs/outputs, None case)? How does it connect to `schedule()`?
+- Interview hook: "The block table IS the page table; allocate_slots is on-demand paging."
+
+**M3.3 Prefix caching** — Effort M — Core.
+- Objective: how shared prefixes (system prompts) skip recompute.
+- Source: `block_pool.py:BlockHashToBlockMap`, `kv_cache_utils.py` (hashing), `get_computed_blocks`.
+- Design doc: `docs/design/prefix_caching.md`.
+- Key concepts: content hashing of blocks; Copy-on-Write; ref counts; eviction interplay with the free queue; hit-rate stats.
+- Hands-on: `tests/v1/core/test_prefix_caching.py`, `tests/v1/core/prefix_cache/`.
+- Self-check: How is a cache hit computed? What guarantees safety when two requests share a block? When is a cached block evictable?
+- Interview hook: "Content-addressed KV sharing with CoW — dedup + safety."
+
+**M3.4 Hybrid / coordinator** — Effort L — *Extended*.
+- Objective: multi-group / Mamba-hybrid KV management.
+- Source: `kv_cache_coordinator.py` (HybridKVCacheCoordinator), `single_type_kv_cache_manager.py`.
+- Design doc: `docs/design/hybrid_kv_cache_manager.md`.
+
+### Phase 4 — Distributed compute plane (Extended)
+
+**M4.1 Executor tiers** — Effort M.
+- Source: `vllm/v1/executor/{uniproc_executor,multiproc_executor,ray_executor}.py`; `abstract.py`.
+- Key concepts: UniProc (1 proc) → Multiproc (worker procs/GPU) → Ray (multi-node); command broadcast via shared-memory message queue (control), NCCL collectives (data).
+- Design doc: `docs/design/multiprocessing.md`.
+- Self-check: How does the executor send work to N workers? What is on the control vs data plane here?
+
+**M4.2 Worker / model_runner (read-only)** — Effort M.
+- Source: `vllm/v1/worker/*` (interfaces only — do NOT try to run; needs GPU).
+- Objective: understand the *interface* the scheduler/executor drive, not the CUDA internals.
+- Design doc: `docs/design/model_runner_v2.md`.
+
+**M4.3 Parallelism TP/PP/DP/EP** — Effort L.
+- Source: `vllm/distributed/*`, `parallel_config`.
+- Key concepts: TP (per-layer all-reduce), PP (stage pipeline), DP (replicas+coordinator), EP (MoE).
+- Self-check: For each, what is split and what is communicated?
+
+**M4.4 KV connectors / disaggregated P/D** — Effort L.
+- Source: `vllm/distributed/kv_transfer/*`, scheduler `connector` hooks.
+- Design doc: `docs/design/nixl_kv_cache_lease.md`, `nixl_kv_push_connector.md`.
+- Interview hook: "Distributed state migration — your wheelhouse."
+
+### Phase 5 — Cross-cutting & features (Extended)
+
+- **M5.1 Config** (`vllm/config/*`) — Effort S — easiest doc/typing PR surface.
+- **M5.2 LoRA** (`vllm/lora/*`) — Effort M — multi-tenant isolation.
+- **M5.3 Observability** (`vllm/tracing`, `vllm/v1/metrics`) — Effort S — `docs/design/metrics.md`; OTel background fit.
+- **M5.4 Structured output / spec decode** (`vllm/v1/structured_output`, `vllm/v1/spec_decode`) — Effort M — `docs/design/logits_processors.md`.
+
+### Phase 6 — Contribution (Core)
+
+**M6.1 Dev env** — Effort M.
+- Steps: WSL2 Ubuntu → `python -m venv` → `VLLM_USE_PRECOMPILED=1 pip install -e .` (skips CUDA build) → `pip install -r requirements/dev.txt` → `pre-commit install`.
+- Design doc: `docs/contributing/README.md`, `docs/contributing/incremental_build.md`.
+- Self-check: Can you import vllm and run one CPU unit test?
+
+**M6.2 Run tests** — Effort S.
+- No-GPU-friendly targets (pure logic): `pytest tests/v1/core/test_scheduler.py`, `test_kv_cache_utils.py`, `test_prefix_caching.py`, `tests/v1/engine/test_engine_core_client.py`.
+- Self-check: Which tests pass without a GPU? (scheduler/kv/queue logic should.)
+
+**M6.3 Find an issue** — Effort M — see [BUG-HUNTING.md](BUG-HUNTING.md).
+
+**M6.4 Make the PR** — Effort M.
+- Branch from clean `main`; small change + test; `git commit -s` (DCO); pass `pre-commit`; push; open PR; respond to review.
+
+---
+
+## Part D · Step 4: Implementation review (QA of the plan)
+
+Checklist — does every Core module have the required parts?
+
+| Module | Objective | Source refs | Design doc | Hands-on (real test) | Self-check | Interview hook | Verdict |
+|---|---|---|---|---|---|---|---|
+| M0.1 | Y | note 00 | — | Q | Y | Y | OK (done) |
+| M0.2 | Y | note 01 | — | Q | Y | Y | OK (done) |
+| M1.1 | Y | core.py lines | arch/multiproc | test_engine_core | Y | Y | OK (note 04) |
+| M1.3 | Y | call chain | arch | annotate 01 | Y | — | OK |
+| M2.1 | Y | scheduler.py lines | arch/prefix | test_scheduler | Y | Y | OK (review 02) |
+| M2.3 | Y | update_from_output:1493 | — | test_output_processor | Y | Y | OK |
+| M2.4 | Y | _preempt_request:1136 | — | forced-preempt test | Y | Y | OK |
+| M3.1 | Y | block_pool.py | paged_attention | test_kv_cache_utils | Y | Y | OK |
+| M3.2 | Y | kv_cache_manager.py | paged_attention | trace from test | Y | Y | OK |
+| M3.3 | Y | BlockHashToBlockMap | prefix_caching | test_prefix_caching | Y | Y | OK |
+| M6.1-4 | Y | contributing docs | contributing | pytest targets | Y | — | OK |
+
+**Gaps flagged**:
+1. Note **03-kv-cache.md does not exist yet** — M3.1-3.3 point to it; must be written when reaching Phase 3. (Tracked in README index as TODO.)
+2. **M2.1 note (02) still says "review pending"** — do a correctness re-read against `scheduler.py` before relying on it.
+3. **M1.2/M2.5/Phase 4-5** are Extended and intentionally lighter; acceptable.
+4. Design-doc claims should be **cross-checked against source** (methodology rule) rather than trusted blindly.
+5. Effort tags are rough; recalibrate after the first two modules.
+
+**QA verdict**: Core Path is complete and self-consistent; each Core module is actionable with a real test and a self-check. Safe to execute.
+
+---
+
+## Progress checklist (tick as you go)
+- [ ] M1.3 e2e trace annotated in 01
+- [ ] M2.1 note 02 reviewed for correctness
+- [ ] M2.3 update_from_output note
+- [ ] M2.4 preemption note
+- [ ] M3.1-3.3 write note 03-kv-cache
+- [ ] M6.1 dev env up (one CPU test passes)
+- [ ] M6.3 first issue chosen
+- [ ] M6.4 first PR opened
+
+_Plan date: 2026-07-02_
