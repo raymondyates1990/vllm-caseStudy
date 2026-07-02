@@ -135,13 +135,15 @@ shows vLLM is a **distributed** inference system that scales from 1 GPU to multi
 | `MultiprocExecutor` | multiple `WorkerProc` processes | **single-node multi-GPU** |
 | `RayDistributedExecutor` / `RayExecutorV2` | Ray cluster | **multi-node multi-GPU** |
 
+> Ray nuance: `RayExecutorV2` extends `MultiprocExecutor` and reuses the same shared-memory message-queue control plane; `RayDistributedExecutor` (legacy) uses Ray's compiled DAG. Same idea, different transport.
+
 **Two planes** (critical distinction):
 - **Control / request plane = queues, async, loosely coupled** (this is the "queue decoupling" picture):
   - frontend <-> engine: ZMQ; engine main <-> IO: in-process `input_queue`/`output_queue`;
   - engine -> workers: a shared-memory message queue broadcasts commands (`SchedulerOutput`) to each GPU worker.
-- **Data / compute plane = NCCL collectives, synchronous, tightly coupled** (NOT queues):
-  - When multiple GPUs compute **one model** (Tensor Parallel), **every layer** does `all-reduce`/`all-gather`
-    to sync intermediate tensors. This is inherently synchronous — you cannot decouple a collective with a queue.
+- **Data / compute plane = collective ops, synchronous, tightly coupled** (NOT queues):
+  - When multiple GPUs compute **one model** (Tensor Parallel), the **TP-split layers** (`tp_size>1`) call collectives — `RowParallelLinear` does `all-reduce`, `ColumnParallelLinear` does `all-gather` — to sync intermediate tensors. This is inherently synchronous — you cannot decouple a collective with a queue.
+  - Backend: **NCCL** on CUDA GPUs (`PyNcclCommunicator`); CPU/XPU/Ray use `torch.distributed` (Gloo) or custom communicators instead.
 
 ```
 Control plane (queues/async)        Data plane (NCCL/sync)

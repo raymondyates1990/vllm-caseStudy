@@ -33,3 +33,10 @@ Subagent verified §1-6 all correct (composition, step 4-stage, step_with_batch_
 - ✅ Added default-multiprocessing + in-process-mode nuance; added socket pairs (DEALER↔ROUTER, PUSH↔PULL).
 - ✅ Fixed the same imprecision in note 01 §1.5.
 - Lesson: subagent overreached from correct evidence to a wrong conclusion; source verification caught it.
+
+## Round 4 — Slice: note 04 §8 distributed / two-plane
+Subagent confirmed ALL major claims accurate and precisely verified the mechanisms: control plane = `rpc_broadcast_mq` (MessageQueue/ShmRingBuffer in shm_broadcast.py) broadcasting SchedulerOutput; data plane = NCCL via PyNcclCommunicator (cuda_communicator.py:304); TP/PP/DP/EP all real in ParallelConfig. Judged the control/data-plane dichotomy "novel and correct."
+- ✅ Added NCCL backend caveat (GPU=NCCL; CPU/XPU/Ray = torch.distributed/Gloo/custom).
+- ✅ Refined "every layer" → TP-split layers (RowParallel all-reduce / ColumnParallel all-gather, tp_size>1).
+- ✅ Added Ray nuance (RayExecutorV2 extends Multiproc + reuses MQ vs RayDistributedExecutor compiled DAG).
+- No errors; §8 validated as source-accurate and insightful.
