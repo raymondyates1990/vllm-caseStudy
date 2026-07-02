@@ -3,6 +3,7 @@
 > Prereq: read [00-project-overview.md](00-project-overview.md) and [01-architecture-map.md](01-architecture-map.md) first.
 > Files: `vllm/v1/core/sched/scheduler.py` (2368 lines), `request_queue.py`, `interface.py`
 > Core method: `schedule()` (393-1131) is the heart of vLLM continuous batching.
+> Status: reviewed 2026-07-02 (round 5) against `scheduler.py` — algorithm claims (two-phase loop, preemption victim selection, prefix caching) verified accurate.
 
 ## 0. One-line mental model
 
@@ -20,7 +21,7 @@ speculative decoding at once. Very elegant.
                                      ^ token_budget caps how much per step
 ```
 
-## 1. Core state (from `__init__`, lines 68-335)
+## 1. Core state (from `__init__`, lines 69-334)
 
 | Field | Meaning | Maps to my experience |
 |---|---|---|
@@ -75,7 +76,7 @@ while waiting not empty and token_budget > 0 and concurrency not full:
 
 ## 3. Subtle design points (interview talking points)
 
-1. **Preemption is admission control**: when KV blocks (memory) run out, evict the lowest-priority / most-recently-added request and free its KV blocks for requests that should run. Equivalent to the soft-throttling / overload protection I built, just with memory blocks as the resource.
+1. **Preemption is admission control**: when KV blocks (memory) run out, evict the lowest-priority / most-recently-added request and free its KV blocks for requests that should run. Equivalent to the soft-throttling / overload protection I built, just with memory blocks as the resource. Note: under FCFS the victim is the *most-recently-added* running request (`running.pop()`) — preemption is **LIFO**, which protects the oldest / most-progressed requests.
 2. **`continue` instead of `break`** (phase 1, when num_new_tokens==0): the comment explicitly says *"do not strictly follow FCFS, allow lower-priority requests to be scheduled"* — **deliberately breaking strict FCFS to avoid head-of-line blocking**, letting runnable requests run first. A classic scheduling trade-off.
 3. **prefix caching**: when multiple requests share a common prefix (e.g. the same system prompt), `get_computed_blocks()` hits already-cached KV blocks and subtracts them from `num_new_tokens`, saving redundant prefill compute. See `BlockHashToBlockMap` in `block_pool.py`.
 4. **Unified abstraction**: prefill/decode/chunked-prefill/spec-decode all run on the single "chase num_computed_tokens" logic, with no special-case branches.

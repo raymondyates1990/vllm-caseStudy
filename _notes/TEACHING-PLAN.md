@@ -114,7 +114,7 @@ Seven phases, ordered to maximize the learner's strengths first (skeleton + sche
 
 ### Phase 2 — Scheduler (continuous batching)
 
-**M2.1 `schedule()` two-phase loop** — Effort L — Draft in [02-scheduler.md](02-scheduler.md) (review pending).
+**M2.1 `schedule()` two-phase loop** — Effort L — [02-scheduler.md](02-scheduler.md) (reviewed round 5, source-accurate).
 - Objective: explain the two phases (RUNNING first w/ preemption, then WAITING admission w/ prefix caching), token budget, the unified `num_computed_tokens` abstraction.
 - Source: `vllm/v1/core/sched/scheduler.py` (__init__:68, schedule:393, phase-1 ~437, phase-2 ~600).
 - Design doc: `docs/design/arch_overview.md` (scheduling section), `docs/design/prefix_caching.md`.
@@ -254,7 +254,7 @@ Checklist — does every Core module have the required parts?
 
 **Gaps flagged**:
 1. Note **03-kv-cache.md does not exist yet** — M3.1-3.3 point to it; must be written when reaching Phase 3. (Tracked in README index as TODO.)
-2. **M2.1 note (02) still says "review pending"** — do a correctness re-read against `scheduler.py` before relying on it.
+2. ~~M2.1 note (02) review pending~~ — DONE (round 5): re-read against `scheduler.py`; preemption victim selection, two-phase loop, and prefix caching all verified accurate.
 3. **M1.2/M2.5/Phase 4-5** are Extended and intentionally lighter; acceptable.
 4. Design-doc claims should be **cross-checked against source** (methodology rule) rather than trusted blindly.
 5. Effort tags are rough; recalibrate after the first two modules.

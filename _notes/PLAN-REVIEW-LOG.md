@@ -40,3 +40,11 @@ Subagent confirmed ALL major claims accurate and precisely verified the mechanis
 - ✅ Refined "every layer" → TP-split layers (RowParallel all-reduce / ColumnParallel all-gather, tp_size>1).
 - ✅ Added Ray nuance (RayExecutorV2 extends Multiproc + reuses MQ vs RayDistributedExecutor compiled DAG).
 - No errors; §8 validated as source-accurate and insightful.
+
+## Round 5 — Slice: note 02 scheduler (was "review pending")
+Thorough subagent audit: judged "exemplary / EXACT MATCH". Verified against scheduler.py: no prefill/decode phase (docstring 396-406), all core-state fields, PRIORITY victim `max(running, key=(priority,arrival_time))` (546-548), FCFS victim `running.pop()` (569), full phase-2 flow (636-942), the exact "continue not break" comment (524-526), BlockHashToBlockMap (block_pool.py:34).
+- ✅ Fixed `__init__` line range 68-335 → 69-334 (class at 68, def at 69).
+- ✅ Added FCFS-LIFO preemption clarification (victim = most-recently-added, protects oldest/most-progressed).
+- ✅ Marked note 02 as reviewed; updated README + TEACHING-PLAN M2.1 status and QA gap #2 (closed).
+- Note: subagent's second "issue" (docstring line range) was critiquing my prompt's approximation, not the note — no change.
+- No HIGH/MEDIUM errors. Note 02 APPROVED.
