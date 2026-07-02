@@ -21,7 +21,7 @@ speculative decoding at once. Very elegant.
                                      ^ token_budget caps how much per step
 ```
 
-## 1. Core state (from `__init__`, lines 69-334)
+## 1. Core state (from `__init__`, lines 69-333)
 
 | Field | Meaning | Maps to my experience |
 |---|---|---|

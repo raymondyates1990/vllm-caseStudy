@@ -99,3 +99,8 @@ Reviewer found the Core deep but interview BREADTH thin. I verified every propos
 - ✅ Discipline kept: only E1/E2/E7 are Core-breadth; E5 Core-for-distributed; rest Reading (vocabulary) — avoids bloating the lean Core spine.
 - ✅ Planned **34-glossary.md** (added to README index).
 - Confirmed already-strong: continuous batching, preemption, PagedAttention, prefix caching, control/data-plane split.
+
+## Round 13 — Holistic: adversarial correctness sweep (all 4 content notes)
+Fresh adversarial fact-check of notes 00/01/02/04 against source. Result: **notes 00, 01, 04 = no errors found; no cross-note contradictions.** Only one LOW nitpick.
+- ✅ note 02: `__init__` line range 69-334 → 69-333 (two independent subagents converged on 333).
+- Strong validation: after 12 review rounds, all content notes are source-accurate (line numbers, mechanisms, ZMQ socket types, scheduler algorithm, KV claims all re-verified). No terminology or architecture errors.
