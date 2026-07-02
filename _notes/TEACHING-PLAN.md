@@ -130,7 +130,7 @@ Seven phases, ordered to maximize the learner's strengths first (skeleton + sche
 - Source: `vllm/v1/core/sched/request_queue.py`; `create_request_queue(policy)`.
 - Hands-on: `tests/v1/core/test_priority_scheduler_random.py`.
 - Self-check: What is the ordering key for priority? How are `peek/pop/prepend` used by the scheduler?
-- Python-lens: `heapq`, `collections.deque`, `@dataclass(order=True)`.
+- Python-lens: `heapq` / `collections.deque` (queue impls), custom ordering via `Request.__lt__` (priority → arrival_time → request_id; `Request` is a plain class, not a dataclass).
 
 **M2.3 `update_from_output()` (state machine)** — Effort M — Core.
 - Objective: how sampled tokens update requests, stop/EOS detection, and what becomes output.
@@ -159,7 +159,7 @@ Seven phases, ordered to maximize the learner's strengths first (skeleton + sche
 - Source: `vllm/v1/core/block_pool.py` — `BlockPool.get_new_blocks`/`free_blocks`/`touch`, `BlockHashToBlockMap`; and `vllm/v1/core/kv_cache_utils.py` — `KVCacheBlock` (has `ref_cnt`, `prev/next_free_block`), `FreeKVCacheBlockQueue` (doubly-linked, sentinel head/tail; `popleft_n`, `remove` = O(1) evict, `append_n`).
 - Design doc: `docs/design/prefix_caching.md` (authoritative for v1). Note: `docs/design/paged_attention.md` is **historical** (its own header warns it no longer matches current code) — use for paper-level intuition only.
 - Key concepts: free-list as a doubly-linked queue; block = fixed #tokens of K/V; append-only block tables; ref counting.
-- Python-lens: linked-list via object refs, `__slots__`, sentinel nodes.
+- Python-lens: linked-list via object refs, `@dataclass(slots=True)`, sentinel head/tail nodes.
 - Hands-on: `tests/v1/core/test_kv_cache_utils.py`, `test_single_type_kv_cache_manager.py`.
 - Self-check: How is a free block chosen? What makes eviction O(1)? Why append-only block tables?
 - Interview hook: "A slab/free-list allocator for GPU memory pages — classic OS memory management."
@@ -219,7 +219,7 @@ Seven phases, ordered to maximize the learner's strengths first (skeleton + sche
 ### Phase 6 — Contribution (Core)
 
 **M6.1 Dev env** — Effort M.
-- Steps: WSL2 Ubuntu → `python -m venv` → `VLLM_USE_PRECOMPILED=1 pip install -e .` (skips CUDA build) → `pip install -r requirements/dev.txt` → `pre-commit install`.
+- Steps: WSL2 Ubuntu (Python 3.12) → `uv venv` → `VLLM_USE_PRECOMPILED=1 uv pip install -e .` (skips CUDA build; plain `pip` also works) → `uv pip install -r requirements/dev.txt` → `uv pip install pre-commit>=4.5.1 && pre-commit install`.
 - Design doc: `docs/contributing/README.md`, `docs/contributing/incremental_build.md`.
 - Self-check: Can you import vllm and run one CPU unit test?
 

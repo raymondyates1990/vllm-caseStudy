@@ -75,3 +75,10 @@ Subagent verified against docs/contributing/README.md: AI-assist policy summary,
 - ✅ ACCEPTED HIGH: §6 PR-prefix checklist was incomplete (5 of 9). Added full official set ([Bugfix]/[CI/Build]/[Doc]/[Model]/[Frontend]/[Kernel]/[Core]/[Hardware][Vendor]/[Misc]) + no-GPU focus/avoid note.
 - ✅ Added bonus CPU-friendly test targets (test_reset_prefix_cache_e2e, test_kv_cache_metrics).
 - Rest of guide validated as doc-accurate.
+
+## Round 10 — Slice: plan M6 contribution + Python-lens (LAST SLICE ROUND)
+Subagent confirmed M6.2 CPU test targets, M1.1 Python-lens (all 5 present in core.py), effort tags reasonable, requirements/dev.txt exists.
+- ✅ M6.1: switched `pip` → `uv pip` to match official docs (noted plain pip also works); added Python 3.12 + pre-commit>=4.5.1.
+- ✅ M2.2 Python-lens: corrected `@dataclass(order=True)` → custom `Request.__lt__` (Request is a plain class, verified request.py:309).
+- ✅ M3.1 Python-lens: `__slots__` → `@dataclass(slots=True)` (kv_cache_utils.py:118).
+- Slice rounds 1-10 COMPLETE. Moving to holistic rounds 11-20.
