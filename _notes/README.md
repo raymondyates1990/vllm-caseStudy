@@ -19,6 +19,8 @@
 | 2 Detail·API | 05-api-server.md | entrypoints/openai request handling | TODO |
 | 3 Contribute | 06-first-pr.md | Pick issue + PR workflow record | TODO |
 
+**Planning & meta docs**: [TEACHING-PLAN.md](TEACHING-PLAN.md) (full curriculum + review + detailed modules + QA) · [BUG-HUNTING.md](BUG-HUNTING.md) (find a bug / first-PR guide + AI-assist policy).
+
 ## Branch convention
 > Full rules: [PROJECT-RULES.md](PROJECT-RULES.md). Per-conversation reflections: [REFLECTIONS.md](REFLECTIONS.md).
 - `main`  — kept clean, only synced with official `upstream`; branch PRs from here.
@@ -54,3 +56,4 @@ git push origin fix/<short-desc>
 - 2026-07-02: added project language rule (records in English, conversation in Chinese).
 - 2026-07-02: translated all existing notes from Chinese/mixed to full English.
 - 2026-07-02: wrote **04-engine.md** — detailed system skeleton (EngineCore composition, step vs step_with_batch_queue, run_busy_loop, 3-thread ZMQ IO, client/engine message protocol).
+- 2026-07-02: added **TEACHING-PLAN.md** (7-phase curriculum, Core/Extended paths, per-module detail, QA review) and **BUG-HUNTING.md** (first-PR strategies grounded in real tests + vLLM AI-assist policy).

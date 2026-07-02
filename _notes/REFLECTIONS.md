@@ -2,6 +2,22 @@
 
 > Append one entry per conversation: what I learned, which detours I took, how to improve next time. Newest on top.
 
+## 2026-07-02 · #4 (Autonomous teaching-plan build)
+**What I did (user at dinner, 5-step autonomous task, no check-ins)**
+- Surveyed the real source tree (vllm subpackages, tests/, docs/design, docs/contributing) to ground the plan.
+- Wrote **TEACHING-PLAN.md**: Part A high-level 7-phase curriculum, Part B plan review + revised Core Path, Part C detailed per-module breakdowns (objective/source/design-doc/hands-on-test/self-check/pitfalls/interview-hook/effort), Part D QA of the plan.
+- Wrote **BUG-HUNTING.md**: first-PR strategies (test gaps, doc drift, edge-case reasoning), no-GPU validation reality (CPU tests partial, rely on CI), PR checklist.
+
+**Key facts learned (source-grounded)**
+- vLLM has an explicit **AI-Assisted Contribution policy**: no pure-agent PRs, human must review/validate/test, avoid busywork (bundle mechanical changes), disclose + `Co-authored-by:` trailer. Directly shapes how we contribute.
+- Python-only dev install: `VLLM_USE_PRECOMPILED=1 uv pip install -e .`. CI uses Python 3.12.
+- Honest constraint: not all unit tests pass on CPU; no-GPU devs rely on CI. `tests/v1/core/*` (scheduler/kv) are the most CPU-friendly.
+- PR title prefixes: [Bugfix] [CI/Build] [Doc] [Model] [Frontend] [Kernel] [Core] [Hardware] [Misc].
+
+**Next-time improvement**
+- When starting Phase 3, write 03-kv-cache.md (still the one missing Core note).
+- Re-review 02-scheduler.md for correctness before relying on it (flagged in plan QA).
+
 ## 2026-07-02 · #3 (Full English migration)
 **What changed**
 - Migrated all existing notes (00/01/02, README, PROJECT-RULES, this log) from Chinese/mixed to full English, per the language rule.
