@@ -69,3 +69,9 @@ Subagent verified ALL claims PASS; traced the full 16-hop flow in correct order.
 - ✅ Refined M1.3 chain to place detokenize in the frontend + added a self-check on it.
 - ✅ Synced the ZMQ bind/connect + async detail into note 04 §6.
 - No errors; both modules validated, ready to write note 05.
+
+## Round 9 — Slice: BUG-HUNTING.md
+Subagent verified against docs/contributing/README.md: AI-assist policy summary, DCO `-s`, the exact no-GPU "rely on CI" quote, dev-install `VLLM_USE_PRECOMPILED=1 uv pip install -e .`, Python 3.12, all 4 cited test files, pre-commit workflow, and job-board links — all CORRECT.
+- ✅ ACCEPTED HIGH: §6 PR-prefix checklist was incomplete (5 of 9). Added full official set ([Bugfix]/[CI/Build]/[Doc]/[Model]/[Frontend]/[Kernel]/[Core]/[Hardware][Vendor]/[Misc]) + no-GPU focus/avoid note.
+- ✅ Added bonus CPU-friendly test targets (test_reset_prefix_cache_e2e, test_kv_cache_metrics).
+- Rest of guide validated as doc-accurate.

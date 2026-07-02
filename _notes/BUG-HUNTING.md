@@ -58,7 +58,7 @@ Avoid as a first PR: kernels/CUDA (`[Kernel]`, needs GPU), new models (`[Model]`
 Read a source function, then its test file, and look for **unexercised branches**:
 - `vllm/v1/core/sched/scheduler.py` ↔ `tests/v1/core/test_scheduler.py`
 - `vllm/v1/core/block_pool.py` ↔ `tests/v1/core/test_kv_cache_utils.py`, `test_single_type_kv_cache_manager.py`
-- prefix caching ↔ `tests/v1/core/test_prefix_caching.py`, `tests/v1/core/prefix_cache/`
+- prefix caching ↔ `tests/v1/core/test_prefix_caching.py`, `tests/v1/core/prefix_cache/`, `test_reset_prefix_cache_e2e.py`, `test_kv_cache_metrics.py`
 - engine client ↔ `tests/v1/engine/test_engine_core_client.py`
 
 Technique: pick a function with a non-trivial `if/continue/break` (e.g. the phase-1 `continue`-not-`break`
@@ -135,7 +135,7 @@ So:
 - [ ] `pre-commit run -a` passes (lint/format; optionally `mypy-3.11` manual hook).
 - [ ] Commit signed off: `git commit -s` (DCO `Signed-off-by:`).
 - [ ] AI assistance disclosed in description + `Co-authored-by:` trailer.
-- [ ] PR title prefix: `[Bugfix]` / `[Core]` / `[Doc]` / `[Frontend]` / `[Misc]`.
+- [ ] PR title prefix (official set): `[Bugfix]` / `[CI/Build]` / `[Doc]` / `[Model]` / `[Frontend]` / `[Kernel]` / `[Core]` / `[Hardware][Vendor]` / `[Misc]`. No-GPU first-timers: use `[Core]` / `[Doc]` / `[Frontend]`; avoid `[Kernel]` / `[Model]` / `[Hardware]`.
 - [ ] Human (you) reviewed every changed line and validated behavior.
 
 ---
