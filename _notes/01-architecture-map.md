@@ -2,6 +2,7 @@
 
 > 自顶向下第二层：把 vLLM 拆成子系统，看清一个请求怎么流过整个系统，
 > 再据"我的强项 + 无 GPU"排出学习优先级。**这一层是钻细节前的地图。**
+> ⚠️ 原则修正：自顶向下**必须基于真实源码**，不能只靠 md/在线资料。下面 §1.5 是从 source code 读出的骨架。
 
 ## 1. 一个请求的生命周期（数据流）
 
@@ -20,6 +21,42 @@ flowchart TD
 ```
 
 一句话：**API 收请求 → Engine 主循环 → Scheduler 决定这步跑什么 → KV 管理分配显存块 → Worker 在 GPU 上前向 → 采样出 token → 更新状态 → 流式吐回。** 循环直到生成结束。
+
+## 1.5 源码验证的真实骨架（从 source code 读出，带 file:line）
+
+> 不是猜的——下面每一步都在源码里对上了。这是"自顶向下 + 读源码"的核心产出。
+
+**外层驱动循环** `EngineCoreProc.run_busy_loop()` — `vllm/v1/engine/core.py:1259`
+```python
+while not shutdown:
+    self._process_input_queue()   # 从 input_queue 收客户端请求 → scheduler.add_request()（入 waiting 队列）
+    self._process_engine_step()   # 调 self.step_fn() = EngineCore.step()，输出塞进 output_queue
+```
+
+**一步** `EngineCore.step()` — `vllm/v1/engine/core.py:479`
+```python
+scheduler_output = self.scheduler.schedule(...)                    # 1 调度：这步跑哪些请求/多少 token
+future = self.model_executor.execute_model(scheduler_output, ...)  # 2 执行：GPU 前向（❌我不碰这层）
+model_output = future.result() or self.model_executor.sample_tokens(...)  # 3 采样出 token
+engine_core_outputs = self.scheduler.update_from_output(...)       # 4 更新请求状态 / 判停止 / 出结果
+```
+
+**关键架构事实**（面试可讲）：
+- **进程解耦**：Engine 跑在独立进程/线程，API 层通过 `input_queue` / `output_queue`（ZMQ/mp）与它通信。请求进出与引擎步进是异步的。
+- **continuous batching 的本质**：busy loop 不停调 `step()`，每一步 `schedule()` **重新**决定 running 集合——新请求随时加入、完成的随时移出、prefill 和 decode 混在同一批 GPU 前向里。不像传统"静态 batch 等齐才发车"。这就是它比 HF 快 24x 的核心之一（另一半是 PagedAttention 省显存能装更大 batch）。
+- **调度与执行分离**：`Scheduler`（纯 CPU 逻辑，我的主场）只产出 `SchedulerOutput`（跑谁、每个跑多少 token、用哪些 KV 块）；`model_executor` 才碰 GPU。**这条分界线正好是我能贡献 vs 需要 GPU 的边界。**
+
+调用链一图流：
+```
+Client(API/AsyncLLM) --input_queue--> EngineCoreProc.run_busy_loop
+    └─ _process_input_queue → scheduler.add_request()   [请求入 waiting 队列]
+    └─ _process_engine_step → EngineCore.step()
+           ├─ scheduler.schedule()            [vllm/v1/core/sched/scheduler.py:393]  ⭐我的主场
+           ├─ model_executor.execute_model()  [GPU 前向]                              ❌需GPU
+           ├─ model_executor.sample_tokens()  [采样]                                  ❌需GPU
+           └─ scheduler.update_from_output()  [更新状态/出token]                       ⭐我的主场
+    └─ 输出 → output_queue --> Client → detokenize → 流式 HTTP 返回
+```
 
 ## 2. 子系统分类表（含 GPU 依赖 + 我的优先级）
 
